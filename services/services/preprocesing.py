@@ -10,68 +10,7 @@ from sklearn.pipeline import Pipeline
 _import = lambda module_name: importlib.import_module(module_name)   
 
 
-class AbsPipelineComponent(abc.ABC):
-
-    @abc.abstractmethod
-    def __init__(self, *args, **conf):
-        pass
-
-    @abc.abstractmethod
-    def fit(self, sents):
-        pass
-
-
-class BasePipelineComponent(AbsPipelineComponent):
-
-    def __init__(self, *args):
-
-        # parse args
-        module_name   = args[0]
-        class_name    = args[1]
-
-        comp_args  = args[2].pop('args', None)
-        comp_kargs = args[2].pop('kargs', {})
-        
-        # cannot continue w/o  these, so dont catch exceptions
-        module_proxy = _import(module_name)            
-        class_proxy  = getattr(module_proxy, class_name)
-
-        self._base_component_instance = class_proxy(*comp_args, **comp_kwrgs)
-
-    @property
-    def component_instanse(self):
-        return self._base_component_instance
-
-
-class StopWordsRemover(BasePipelineComponent):
-
-    def __init__(self, *args, **kwargs):
-
-        lang = args[0] if args[0] else 'english'
-        
-        try:
-            self._stop_words = nltk.corpus.stopwords.words(lang)
-        except LookupError as err:
-            print('Falied to import stopwords. Trying to download')
-
-        try:
-            nltk.download('stopwords')
-        except Exception as err:
-            print('Falied to download englishs stopwords. Cannot use this component') 
-
-        stop_words = nltk.corpus.stopwords.words(lang)
-        self._is_stopword = lambda w: w in stop_words
-        
-        # call base initializer
-        super(BasePipelineComponent, self).__init__(*args, **kwargs)
-    
-    def fit(self, sents):
-
-        return filter(self._is_stopword, sents)
-        
-
-
-class PreProcessingPipelineWrapper():
+class PreProcessingPipelineWrapper(Pipeline):
 
     is_local_class = lambda : os.path.basename(__file__).split('.')[0]
 
@@ -96,14 +35,79 @@ class PreProcessingPipelineWrapper():
 
             else:
                 class_instance = BasePipelineComponent(module_name, class_name, cnf['%conf'%step_name])
-
             pipeline_steps += [(step_name, class_instance)]
 
-        # import pdb; pdb.set_trace()
-        self._pipeline = Pipeline(steps=pipeline_steps, memory=memory)
+        super(PreProcessingPipelineWrapper, self).__init__(steps=pipeline_steps, memory=memory)
+    
+
+
+class AbsPipelineComponent(abc.ABC):
+
+    @abc.abstractmethod
+    def __init__(self, *args, **conf):
+        pass
+
+    @abc.abstractmethod
+    def fit(self, sents):
+        pass
+
+    @abc.abstractmethod
+    def transform(self, sents):
+        pass
+
+
+class BasePipelineComponent(AbsPipelineComponent):
+
+    def __init__(self, *args):
+
+        # parse args
+        module_name   = args[0]
+        class_name    = args[1]
+
+        comp_args  = args[2].pop('args', None)
+        comp_kargs = args[2].pop('kargs', {})
+        
+        # cannot continue w/o  these, so dont catch exceptions
+        module_proxy = _import(module_name)            
+        class_proxy  = getattr(module_proxy, class_name)
+
+        self._base_component_instance = class_proxy(*comp_args, **comp_kwrgs)
+
+    def fit(self, sents):
+        return sents
+
+    def transform(self, sents):
+        return sents
 
     @property
-    def pipeline():
-        return self._pipeline
+    def component_instanse(self):
+        return self._base_component_instance
 
+
+class StopWordsRemover(BasePipelineComponent):
+
+    def __init__(self, *args, **kwargs):
+
+        lang = args[0] if args[0] else 'english'
+        
+        try:
+            self._stop_words = nltk.corpus.stopwords.words(lang)
+        except LookupError as err:
+            print('Falied to import stopwords. Trying to download')
+
+        try:
+            nltk.download('stopwords')
+        except Exception as err:
+            print('Falied to download english stopwords. Cannot use this component') 
+
+        stop_words = nltk.corpus.stopwords.words(lang)
+        self._is_not_stopword = lambda w: w not in stop_words
+        
+        # call base initializer
+        super(BasePipelineComponent, self).__init__(*args, **kwargs)
+
+    def transform(self, sents):
+
+        return filter(self._is_not_stopword, sents)
+        
 

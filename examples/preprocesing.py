@@ -7,6 +7,9 @@ opts = parser.parse_args()
 
 from services.preprocesing import PreProcessingPipelineWrapper
 
-ppl = PreProcessingPipelineWrapper(opts.conf_file).pipeline()
+ppl = PreProcessingPipelineWrapper(opts.conf_file)
+#ppl = PreProcessingPipelineWrapper(opts.conf_file)
+
+print(list(ppl.transform(['and','kalispera'])))
 
 
