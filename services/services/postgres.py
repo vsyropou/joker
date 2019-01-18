@@ -5,10 +5,10 @@ import asyncio
 import asyncpg
 
 
-__all__ = ['TweetsDbConnector']
+__all__ = ['TweetsDbService']
 
 
-class AbsPostgressConnector(abc.ABC):
+class AbsPostgressService(abc.ABC):
 
     @property
     @abc.abstractmethod
@@ -26,7 +26,7 @@ class AbsPostgressConnector(abc.ABC):
         pass
 
 
-class BasePostgressConnector(AbsPostgressConnector):
+class BasePostgressService(AbsPostgressService):
 
     formaters = { 'base' : dict }
 
@@ -45,7 +45,7 @@ class BasePostgressConnector(AbsPostgressConnector):
     def _check_password(self):
                 
         classname = self.__class__.__name__
-        prefix = classname.split('PostgresDatabaseConnector')[0]
+        prefix = classname.split('PostgresDatabaseService')[0]
 
         self._credentials_path = os.path.join('/tmp/%s_postgress_crd.json'%prefix)
         if not os.path.exists(self._credentials_path):
@@ -83,7 +83,7 @@ class BasePostgressConnector(AbsPostgressConnector):
         return loop.run_until_complete(run())
 
 
-class TweetsDbConnector(BasePostgressConnector):
+class TweetsDbService(BasePostgressService):
 
     @property
     def host(self):

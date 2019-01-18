@@ -1,0 +1,11 @@
+
+ {
+	"steps": [
+		["preprocesing_service", "StopWordsRemover", "remove_stopwords"]
+	],
+	"memory": false,
+	"remove_stopwords_conf": {
+		"args": ["english"],
+		"kwargs": {}
+	}
+}
