@@ -1,19 +1,18 @@
 
-import numpy as np
+import re
 import nltk
+import numpy as np
+
 from services.pipelines import BasePipelineComponent
 
 class StopWordsRemoverSvc(BasePipelineComponent):
-
-    @property
-    def wraped_class_def(self):
-        return ['','']
     
     def __init__(self, *args, **kwargs):
 
         # TODO: # print info when configuring
         lang = args[0] if args[0] else 'english'
 
+        # TODO: make more compact
         # TODO: fix logic to dl only when stopwords cannot be imported
         try:
             self._stop_words = nltk.corpus.stopwords.words(lang)
@@ -46,13 +45,19 @@ class TweeterTokenizerSvc(BasePipelineComponent):
 
 class UrlRemover(BasePipelineComponent):
 
-    @property
-    def wraped_class_def(self):
-        return ['','']
-
     def transform(self, sents):
-        #TODO: has the urls and persist them in a sql table
-        import pdb; pdb.set_trace()
-        urls = re.findall("(?P<url>https?://[^\s]+)", ' '.join(sents))
+
+        #TODO: Persist the url. setup db to generate hashes on insertion
+        if self.persist_removed_urls:
+            urls = re.findall("(?P<url>https?://[^\s]+)", ' '.join(sents))
+            if urls:
+                print('persisting urls to db')
+
+        # remove urls
+        out_sentences = [re.sub("(?P<url>https?://[^\s]+)", '', s) for s in sents]
+        
+        return out_sentences
+
+#TODO:
 # use my msg service
 

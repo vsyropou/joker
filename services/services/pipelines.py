@@ -41,11 +41,6 @@ class PreProcessingPipelineWrapper(Pipeline):
 
 class AbsPipelineComponent(abc.ABC):
 
-    @property
-    @abc.abstractmethod
-    def wraped_class_def(self):
-        pass
-
     @abc.abstractmethod
     def fit(self, sents):
         pass
@@ -58,26 +53,30 @@ class AbsPipelineComponent(abc.ABC):
 class BasePipelineComponent(AbsPipelineComponent):
 
     def __init__(self, *args, **kwargs):
-#         import pdb; pdb.set_trace()
-        # parse args
-        module_name   = self.wraped_class_def[0]
-        class_name    = self.wraped_class_def[1]
 
-        # TODO: Add exception to promt for checking classes excistance, dump suported classes maybe
-        try:
-            module_proxy = _import(module_name)
-            class_proxy  = getattr(module_proxy, class_name)
+        # parse args, if any, for the wrapper instanse
+        for key, arg in kwargs.items():
+            if key.startswith('wrapper'):
+                print(key,arg)
+                setattr(self, '_'.join(key.split('_')[1:]), arg)
         
-            # TODO: Print info for instantiating base object
-            kwargs = {k:v for k,v in kwargs.items() if not k.startswith('wrapper') }
-            self._base_component_instance = class_proxy(*args, **kwargs)
-        except Exception as err:
-            print('Parse this exception nicely')
-            
-        # more properties for the wrapper class
-        wrapper_kwargs = {k:v for k,v in kwargs.items() if k.startswith('wrapper') }
-        for key, arg in wrapper_kwargs.items():
-            setattr(self, '_'.join(key.split('_')[1:]), arg)
+        # invoke underlyng object, if any
+        if hasattr(self, 'wraped_class_def'):
+            module_name   = self.wraped_class_def[0]
+            class_name    = self.wraped_class_def[1]
+
+            # TODO: Add exception to promt for checking classes excistance, dump suported classes maybe
+            try:
+                module_proxy = _import(module_name)
+                class_proxy  = getattr(module_proxy, class_name)
+        
+                # TODO: Print info for instantiating base object
+                kwargs = {k:v for k,v in kwargs.items() if not k.startswith('wrapper') }
+
+                self._base_component_instance = class_proxy(*args, **kwargs)
+            except Exception as err:
+                print('Parse this exception nicely')
+
 
     def fit(self, sents):
         #TODO: prinout warning that the base method is used and it dows nothing
