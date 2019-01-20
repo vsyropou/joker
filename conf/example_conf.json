@@ -1,17 +1,26 @@
 
- {
-	"steps": [
-	    ["preprocesing_service", "StopWordsRemover", "remove_stopwords"],
-	    ["preprocesing_service", "StopWordsRemover", "remove_stopwords_2"]
-	],
-	"memory": false,
-	"remove_stopwords_conf": {
-		"args": ["english"],
-		"kwargs": {}
-	},
-     	"remove_stopwords_2_conf": {
-		"args": ["english"],
-	    "kwargs": {}
-	}
+{
+ 	"steps": [
+ 		["services.preprocesing", "UrlRemover", "url_remover"],
+ 		["services.preprocesing", "TweeterTokenizerSvc", "tweeter_tokenizer"],
+ 		["services.preprocesing", "StopWordsRemoverSvc", "remove_stopwords"]
+ 	],
+ 	"memory": false,
+ 	"url_remover_conf": {
+ 		"kwargs": {
+ 			"wrapper_persist_removed_urls": true
+ 		}
+ 	},
+ 	"remove_stopwords_conf": {
+ 		"args": ["english"],
+ 		"kwargs": {}
+ 	},
+ 	"tweeter_tokenizer_conf": {
+ 		"args": [],
+ 		"kwargs": {
+ 			"preserve_case": true,
+ 			"strip_handles": false
+ 		}
+ 	}
 
 }

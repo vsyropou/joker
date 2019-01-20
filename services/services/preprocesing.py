@@ -1,95 +1,20 @@
-import os
-import json
-import abc
-import importlib
+
 import numpy as np
 import nltk
+from services.pipelines import BasePipelineComponent
 
-from sklearn.pipeline import Pipeline
-
-_import = lambda module_name: importlib.import_module(module_name)   
-
-
-class PreProcessingPipelineWrapper(Pipeline):
-
-    is_local_class = lambda : os.path.basename(__file__).split('.')[0]
-
-    def __init__(self, conf_file):
-
-        # parse configuration
-        cnf = json.load(open(conf_file,'r'))
-
-        steps_specs = cnf.pop('steps', None) 
-        memory = cnf.pop('memory', False)
-
-        assert len(steps_specs) >= 1, 'Pipeline without any components.'
-        pipeline_steps = []
-        for module_name, class_name, step_name in steps_specs:
-
-            if self.is_local_class:
-                class_proxy  = getattr(_import('services.preprocesing'), class_name)
-                class_args   = cnf['%s_conf'%step_name].pop('args', None)
-                class_kwargs = cnf['%s_conf'%step_name].pop('kwargs', {})
-
-                class_instance = class_proxy(*class_args, **class_kwargs)
-
-            else:
-                class_instance = BasePipelineComponent(module_name, class_name, cnf['%conf'%step_name])
-            pipeline_steps += [(step_name, class_instance)]
-
-        super(PreProcessingPipelineWrapper, self).__init__(steps=pipeline_steps, memory=memory)
-    
-
-
-class AbsPipelineComponent(abc.ABC):
-
-    @abc.abstractmethod
-    def __init__(self, *args, **conf):
-        pass
-
-    @abc.abstractmethod
-    def fit(self, sents):
-        pass
-
-    @abc.abstractmethod
-    def transform(self, sents):
-        pass
-
-
-class BasePipelineComponent(AbsPipelineComponent):
-
-    def __init__(self, *args):
-
-        # parse args
-        module_name   = args[0]
-        class_name    = args[1]
-
-        comp_args  = args[2].pop('args', None)
-        comp_kargs = args[2].pop('kargs', {})
-        
-        # cannot continue w/o  these, so dont catch exceptions
-        module_proxy = _import(module_name)            
-        class_proxy  = getattr(module_proxy, class_name)
-
-        self._base_component_instance = class_proxy(*comp_args, **comp_kwrgs)
-
-    def fit(self, sents):
-        return sents
-
-    def transform(self, sents):
-        return sents
+class StopWordsRemoverSvc(BasePipelineComponent):
 
     @property
-    def component_instanse(self):
-        return self._base_component_instance
-
-
-class StopWordsRemover(BasePipelineComponent):
-
+    def wraped_class_def(self):
+        return ['','']
+    
     def __init__(self, *args, **kwargs):
 
+        # TODO: # print info when configuring
         lang = args[0] if args[0] else 'english'
-        
+
+        # TODO: fix logic to dl only when stopwords cannot be imported
         try:
             self._stop_words = nltk.corpus.stopwords.words(lang)
         except LookupError as err:
@@ -100,14 +25,34 @@ class StopWordsRemover(BasePipelineComponent):
         except Exception as err:
             print('Falied to download english stopwords. Cannot use this component') 
 
-        stop_words = nltk.corpus.stopwords.words(lang)
-        self._is_not_stopword = lambda w: w not in stop_words
-        
-        # call base initializer
-        super(BasePipelineComponent, self).__init__(*args, **kwargs)
+        self._stop_words = nltk.corpus.stopwords.words(lang)
 
     def transform(self, sents):
 
-        return filter(self._is_not_stopword, sents)
-        
+        is_not_stopword = lambda w: w not in self._stop_words
+        # TODO: # print info when trnasforming
+        return filter(is_not_stopword, sents)
+    
+
+class TweeterTokenizerSvc(BasePipelineComponent):
+
+    @property
+    def wraped_class_def(self):
+        return ['nltk', 'TweetTokenizer']
+    
+    def transform(self, sents):
+        return np.array([self.component_instanse.tokenize(s) for s in sents])
+
+
+class UrlRemover(BasePipelineComponent):
+
+    @property
+    def wraped_class_def(self):
+        return ['','']
+
+    def transform(self, sents):
+        #TODO: has the urls and persist them in a sql table
+        import pdb; pdb.set_trace()
+        urls = re.findall("(?P<url>https?://[^\s]+)", ' '.join(sents))
+# use my msg service
 

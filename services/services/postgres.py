@@ -5,7 +5,7 @@ import asyncio
 import asyncpg
 
 
-__all__ = ['TweetsDbService']
+__all__ = ['PostgresReaderService', 'PostgresWriterService']
 
 
 class AbsPostgressService(abc.ABC):
@@ -64,6 +64,7 @@ class BasePostgressService(AbsPostgressService):
         
         args = [self.user, self.host, pwd, self.database]
 
+        # TODO: connect only once ??
         async def run():
             conn = await asyncpg.connect(user = self.user,
                                          password = pwd,
@@ -83,7 +84,22 @@ class BasePostgressService(AbsPostgressService):
         return loop.run_until_complete(run())
 
 
-class TweetsDbService(BasePostgressService):
+class PostgresReaderService(BasePostgressService):
+
+    @property
+    def host(self):
+        return 'localhost'
+
+    @property
+    def user(self):
+        return 'postgres'
+    
+    @property
+    def database(self):
+        return 'postgres'
+
+
+class PostgresWriterService(BasePostgressService):
 
     @property
     def host(self):

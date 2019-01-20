@@ -1,9 +1,20 @@
 
-import utilities
-from utilities import postgress
+import pandas as pd
+from services.postgres import PostgresReaderService
+from services.postgres_queries import column_names
 
-db = postgress.TweetsDbConnector()
+db = PostgresReaderService()
 
-data = db.query('''SELECT * FROM tweets''')
+column_names = list(map(lambda r: list(r.values())[0],
+                        db.query(column_names('tweets'))))
 
-# v =  [v for v in data[0].values()]
+
+for sufix, query, columns in zip(['text', 'full'],
+                                 ['''SELECT text FROM tweets''', '''SELECT *FROM tweets'''],
+                                 [['text'], column_names]):
+    
+    response = db.query(query)
+    dframe   = pd.DataFrame(response, columns=columns)
+
+    dframe.to_csv('tweets_%s.csv'%sufix)
+    
