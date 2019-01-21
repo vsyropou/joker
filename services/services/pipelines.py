@@ -27,15 +27,19 @@ class PreProcessingPipelineWrapper(Pipeline):
 
             # TODO: exception to explain what to do if module is not found
             class_proxy  = getattr(_import(module_name), class_name)
-            
-            class_args   = cnf['%s_conf'%step_name].pop('args', [])
-            class_kwargs = cnf['%s_conf'%step_name].pop('kwargs', {})
+
+            try:
+                class_args   = cnf['%s_conf'%step_name].pop('args', [])
+                class_kwargs = cnf['%s_conf'%step_name].pop('kwargs', {})
+            except KeyError as err:
+                print('Cannot find configuration for underlying engine of class %s. Using defaults.'%class_name)
+                class_args, class_kwargs = [], {}
 
             class_instance = class_proxy(*class_args, **class_kwargs)
 
             pipeline_steps += [(step_name, class_instance)]
 
-        super(PreProcessingPipelineWrapper, self).__init__(steps=pipeline_steps, memory=memory)
+        super().__init__(steps=pipeline_steps, memory=memory)
         # TODO: check that all the steps where included
         # TODO: Print info on steps
 
@@ -53,30 +57,36 @@ class AbsPipelineComponent(abc.ABC):
 class BasePipelineComponent(AbsPipelineComponent):
 
     def __init__(self, *args, **kwargs):
-
-        # parse args, if any, for the wrapper instanse
+        # TODO: dump configurationon instantiating as a verbose mode
+        
+        # set attributes, if any, for the wrapper instanse
         for key, arg in kwargs.items():
             if key.startswith('wrapper'):
-                print(key,arg)
                 setattr(self, '_'.join(key.split('_')[1:]), arg)
-        
+
         # invoke underlyng object, if any
         if hasattr(self, 'wraped_class_def'):
             module_name   = self.wraped_class_def[0]
             class_name    = self.wraped_class_def[1]
-
             # TODO: Add exception to promt for checking classes excistance, dump suported classes maybe
             try:
                 module_proxy = _import(module_name)
                 class_proxy  = getattr(module_proxy, class_name)
-        
+
                 # TODO: Print info for instantiating base object
                 kwargs = {k:v for k,v in kwargs.items() if not k.startswith('wrapper') }
 
-                self._underlying_obj_instance = class_proxy(*args, **kwargs)
-                
+                # some engines dont need to be initialized
+                if class_proxy.__class__.__name__ in ['function', 'LazyModule']:
+                    engine = class_proxy
+                else:
+                    engine = class_proxy(*args, **kwargs)
+                # set underlying engine
+                setattr(self, "underlying_engine", engine)
+
+            #TODO: parse thjis nicely
             except Exception as err:
-                print('Parse this exception nicely')
+                print('Parse this exception nicely', err)
 
 
     def fit(self, sents):
@@ -86,7 +96,3 @@ class BasePipelineComponent(AbsPipelineComponent):
     def transform(self, sents):
         #TODO: prinout warning that the base method is used and it dows nothing
         return sents
-
-    @property
-    def underlying_obj_instanse(self):
-        return self._underlying_obj_instance

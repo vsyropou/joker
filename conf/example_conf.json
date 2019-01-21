@@ -1,28 +1,32 @@
 
 {
- 	"steps": [
- 		["services.preprocesing", "RegExpRemover", "url_hastags_remover"],
- 		["services.preprocesing", "TweeterTokenizerSvc", "tweeter_tokenizer"],
- 		["services.preprocesing", "StopWordsRemoverSvc", "remove_stopwords"]
- 	],
- 	"memory": false,
- 	"url_hastags_remover_conf": {
- 		"kwargs": {
- 		    "wrapper_persist_removed_urls": true,
-		    "wrapper_remove_urls": true,
-		    "wrapper_remove_htags": true
- 		}
- 	},
- 	"remove_stopwords_conf": {
- 		"args": ["english"],
- 		"kwargs": {}
- 	},
- 	"tweeter_tokenizer_conf": {
- 		"args": [],
- 		"kwargs": {
- 			"preserve_case": true,
- 			"strip_handles": true
- 		}
+    "steps": [
+	["services.preprocesing", "UrlRegExpRemoverSvc",      "remove_urls"],
+	["services.preprocesing", "HashtagRegExpRemoverSvc",  "remove_hashtags"],
+	["services.preprocesing", "PunktuationExpRemoverSvc", "remove_punktuations"],
+	["services.preprocesing", "TweeterTokenizerSvc",      "tokenize"],
+	["services.preprocesing", "StopWordsRemoverSvc",      "remove_stopwords"],
+	["services.preprocesing", "EmojiReplacerSvc",         "replace_emojis"]
+    ],
+    "memory": false,
+    "remove_urls_conf": {
+ 	"kwargs": {
+ 	    "wrapper_persist_removed_urls": true
  	}
-
+    },
+    "remove_hashtags_conf": {
+ 	"kwargs": {
+	}
+    },
+    "remove_stopwords_conf": {
+	"kwargs": {
+	    "wrapper_language": "english"}
+    },
+    "tokenize_conf": {
+ 	"kwargs": {
+ 	    "preserve_case": true,
+ 	    "strip_handles": true
+ 	}
+    }
+    
 }

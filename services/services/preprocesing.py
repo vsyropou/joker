@@ -1,37 +1,49 @@
 
 import re
 import nltk
+from string import punctuation
 import numpy as np
 
 from services.pipelines import BasePipelineComponent
 
+
 class StopWordsRemoverSvc(BasePipelineComponent):
-    
-    def __init__(self, *args, **kwargs):
-
-        # TODO: # print info when configuring
-        lang = args[0] if args[0] else 'english'
-
-        # TODO: make more compact
-        # TODO: fix logic to dl only when stopwords cannot be imported
-        try:
-            self._stop_words = nltk.corpus.stopwords.words(lang)
-        except LookupError as err:
-            print('Falied to import stopwords. Trying to download')
-
-        try:
-            nltk.download('stopwords')
-        except Exception as err:
-            print('Falied to download english stopwords. Cannot use this component') 
-
-        self._stop_words = nltk.corpus.stopwords.words(lang)
 
     def transform(self, sents):
 
-        is_not_stopword = lambda w: w not in self._stop_words
-        # TODO: # print info when trnasforming
-        return filter(is_not_stopword, sents)
+        stop_words = None
+        try:
+            stop_words = nltk.corpus.stopwords.words(self.language)
+        except LookupError as err:
+            print('Falied to import stopwords. Trying to download')
+
+            nltk.download('stopwords')
+            stop_words = nltk.corpus.stopwords.words(self.language)
+
+        if not stop_words:
+            raise RuntimeError('Cannot load stopwords')
+        # TODO: parse this exception nicer
+
+        snt_filter = lambda snt: list(filter(lambda s: s not in stop_words, snt))
+        # print(snt_filter(sents[3]))
+        # import pdb; pdb.set_trace()
+
+        return map(snt_filter, sents)
+
     
+
+class EmojiReplacerSvc(BasePipelineComponent):
+
+    @property
+    def wraped_class_def(self):
+        return ['emoji', 'demojize']
+    
+    def transform(self, sents):
+        # TODO: too slow need to vetorize
+        # TODO: move delimiters to the configuration file
+        import pdb; pdb.set_trace()
+        return np.array([self.underlying_engine(s, delimiters=(':',':')) for s in sents])
+
 
 class TweeterTokenizerSvc(BasePipelineComponent):
 
@@ -40,42 +52,43 @@ class TweeterTokenizerSvc(BasePipelineComponent):
         return ['nltk', 'TweetTokenizer']
     
     def transform(self, sents):
-        return np.array([self.underlying_obj_instanse.tokenize(s) for s in sents])
+        return np.array([self.underlying_engine.tokenize(s) for s in sents])
 
 
-class RegExpRemover(BasePipelineComponent):
+    
+class UrlRegExpRemoverSvc(BasePipelineComponent):
 
-    _regular_expresions = dict(urls  = "(?P<url>https?://[^\s]+)",
-                               htags = "(?:\#+[\w_]+[\w\'_\-]*[\w_]+)")
-
-    _remove_entity = lambda slf, entity: getattr(slf, 'remove_%s'%entity)
+    _regular_expresion = re.compile("(?P<url>https?://[^\s]+)")
     
     def transform(self, sents):
 
         #TODO: Persist the url. setup db to generate hashes on insertion
         if self.persist_removed_urls:
-            urls = re.findall("(?P<url>https?://[^\s]+)", ' '.join(sents))
+            urls = re.findall(self._regular_expresion, ' '.join(sents))
             if urls:
                 print('persisting urls to db')
+        # TODO!!!!! compile the regewp only once
+        return [re.sub(self._regular_expresion, '', snt) for snt in sents]
 
-        # helping stuff
-        rm = lambda ent: self._remove_entity(ent)
-        replace  = lambda snt, rex: re.sub(rex, '', snt)
-        rm_urls  = lambda snt: replace(snt, self._regular_expresions['urls'])
-        rm_htags = lambda snt: replace(snt, self._regular_expresions['htags'])
 
-        # remove stuff
-        if rm('urls') and rm('htags'):
-            out_sentences = [ rm_htags(rm_urls(s)) for s in sents]
-        elif rm('urls') and not rm('htags'):
-            out_sentences = [ rm_urls(s) for s in sents]
-        elif rm('htags') and not rm('urls'):
-            out_sentences = [ rm_htags(s) for s in sents]
-        else:
-            print('doing  nothing')
-        
-        return out_sentences
+class HashtagRegExpRemoverSvc(BasePipelineComponent):
 
-#TODO:
+    _regular_expresion = re.compile("(?:\#+[\w_]+[\w\'_\-]*[\w_]+)")
+    
+    def transform(self, sents):
+        return [re.sub(self._regular_expresion, '', snt) for snt in sents]
+
+
+class PunktuationExpRemoverSvc(BasePipelineComponent):
+   
+    _regular_expresion = re.compile('[%s]' % re.escape(punctuation))
+
+    def transform(self, sents):
+
+        return [re.sub(self._regular_expresion, '', snt) for snt in sents]
+
+
+# TODO:
 # use my msg service
-
+# print info when trnasforming
+# Try to express transoform operations with either numpy or pandas (maybe spark also) operators such that you iterate only once

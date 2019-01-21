@@ -16,4 +16,6 @@ sentences = list(filter(lambda s: s is not np.nan, sentences))
 
 out = list(ppl.transform(sentences))
 
+
+for i in out[:60]: print(i)
 # use pandas dataframes by default, so that you can exploit dask later
