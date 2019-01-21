@@ -40,11 +40,16 @@ class TweeterTokenizerSvc(BasePipelineComponent):
         return ['nltk', 'TweetTokenizer']
     
     def transform(self, sents):
-        return np.array([self.component_instanse.tokenize(s) for s in sents])
+        return np.array([self.underlying_obj_instanse.tokenize(s) for s in sents])
 
 
-class UrlRemover(BasePipelineComponent):
+class RegExpRemover(BasePipelineComponent):
 
+    _regular_expresions = dict(urls  = "(?P<url>https?://[^\s]+)",
+                               htags = "(?:\#+[\w_]+[\w\'_\-]*[\w_]+)")
+
+    _remove_entity = lambda slf, entity: getattr(slf, 'remove_%s'%entity)
+    
     def transform(self, sents):
 
         #TODO: Persist the url. setup db to generate hashes on insertion
@@ -53,8 +58,21 @@ class UrlRemover(BasePipelineComponent):
             if urls:
                 print('persisting urls to db')
 
-        # remove urls
-        out_sentences = [re.sub("(?P<url>https?://[^\s]+)", '', s) for s in sents]
+        # helping stuff
+        rm = lambda ent: self._remove_entity(ent)
+        replace  = lambda snt, rex: re.sub(rex, '', snt)
+        rm_urls  = lambda snt: replace(snt, self._regular_expresions['urls'])
+        rm_htags = lambda snt: replace(snt, self._regular_expresions['htags'])
+
+        # remove stuff
+        if rm('urls') and rm('htags'):
+            out_sentences = [ rm_htags(rm_urls(s)) for s in sents]
+        elif rm('urls') and not rm('htags'):
+            out_sentences = [ rm_urls(s) for s in sents]
+        elif rm('htags') and not rm('urls'):
+            out_sentences = [ rm_htags(s) for s in sents]
+        else:
+            print('doing  nothing')
         
         return out_sentences
 

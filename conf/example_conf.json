@@ -1,14 +1,16 @@
 
 {
  	"steps": [
- 		["services.preprocesing", "UrlRemover", "url_remover"],
+ 		["services.preprocesing", "RegExpRemover", "url_hastags_remover"],
  		["services.preprocesing", "TweeterTokenizerSvc", "tweeter_tokenizer"],
  		["services.preprocesing", "StopWordsRemoverSvc", "remove_stopwords"]
  	],
  	"memory": false,
- 	"url_remover_conf": {
+ 	"url_hastags_remover_conf": {
  		"kwargs": {
- 			"wrapper_persist_removed_urls": true
+ 		    "wrapper_persist_removed_urls": true,
+		    "wrapper_remove_urls": true,
+		    "wrapper_remove_htags": true
  		}
  	},
  	"remove_stopwords_conf": {
@@ -19,7 +21,7 @@
  		"args": [],
  		"kwargs": {
  			"preserve_case": true,
- 			"strip_handles": false
+ 			"strip_handles": true
  		}
  	}
 

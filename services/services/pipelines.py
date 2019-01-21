@@ -73,7 +73,8 @@ class BasePipelineComponent(AbsPipelineComponent):
                 # TODO: Print info for instantiating base object
                 kwargs = {k:v for k,v in kwargs.items() if not k.startswith('wrapper') }
 
-                self._base_component_instance = class_proxy(*args, **kwargs)
+                self._underlying_obj_instance = class_proxy(*args, **kwargs)
+                
             except Exception as err:
                 print('Parse this exception nicely')
 
@@ -87,5 +88,5 @@ class BasePipelineComponent(AbsPipelineComponent):
         return sents
 
     @property
-    def component_instanse(self):
-        return self._base_component_instance
+    def underlying_obj_instanse(self):
+        return self._underlying_obj_instance
