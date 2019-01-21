@@ -1,12 +1,16 @@
 
 {
     "steps": [
-	["services.preprocesing", "UrlRegExpRemoverSvc",      "remove_urls"],
-	["services.preprocesing", "HashtagRegExpRemoverSvc",  "remove_hashtags"],
-	["services.preprocesing", "PunktuationExpRemoverSvc", "remove_punktuations"],
-	["services.preprocesing", "TweeterTokenizerSvc",      "tokenize"],
-	["services.preprocesing", "StopWordsRemoverSvc",      "remove_stopwords"],
-	["services.preprocesing", "EmojiReplacerSvc",         "replace_emojis"]
+	["services.preprocesing", "LineBreaksRemoverSvc",  "remove_lbreaks"],
+	["services.preprocesing", "HandlesRemoverSvc",     "remove_handles"],
+	["services.preprocesing", "UrlRemoverSvc",         "remove_urls"],
+	["services.preprocesing", "HashtagRemoverSvc",     "remove_hashtags"],
+	["services.preprocesing", "EmojiReplacerSvc",      "replace_emojis"],
+	["services.preprocesing", "PunktuationRemoverSvc", "remove_punktuations"],
+	["services.preprocesing", "TweeterTokenizerSvc",   "tokenize"],
+	["services.preprocesing", "StopWordsRemoverSvc",   "remove_stopwords"],
+	["services.preprocesing", "NanRemoverSvc",         "remove_nans"]
+
     ],
     "memory": false,
     "remove_urls_conf": {
@@ -20,12 +24,13 @@
     },
     "remove_stopwords_conf": {
 	"kwargs": {
-	    "wrapper_language": "english"}
+	    "wrapper_language": "english",
+	    "wrapper_add_stopwords": ["RT", "HT", "TIL", "OH"]}
     },
     "tokenize_conf": {
  	"kwargs": {
  	    "preserve_case": true,
- 	    "strip_handles": true
+ 	    "strip_handles": false
  	}
     }
     

@@ -22,6 +22,7 @@ class PreProcessingPipelineWrapper(Pipeline):
         memory = cnf.pop('memory', False)
 
         assert len(steps_specs) >= 1, 'Pipeline without any components.'
+
         pipeline_steps = []
         for module_name, class_name, step_name in steps_specs:
 
@@ -66,8 +67,8 @@ class BasePipelineComponent(AbsPipelineComponent):
 
         # invoke underlyng object, if any
         if hasattr(self, 'wraped_class_def'):
-            module_name   = self.wraped_class_def[0]
-            class_name    = self.wraped_class_def[1]
+            module_name = self.wraped_class_def[0]
+            class_name  = self.wraped_class_def[1]
             # TODO: Add exception to promt for checking classes excistance, dump suported classes maybe
             try:
                 module_proxy = _import(module_name)
@@ -93,6 +94,3 @@ class BasePipelineComponent(AbsPipelineComponent):
         #TODO: prinout warning that the base method is used and it dows nothing
         return sents
 
-    def transform(self, sents):
-        #TODO: prinout warning that the base method is used and it dows nothing
-        return sents
