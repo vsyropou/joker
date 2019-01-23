@@ -14,7 +14,7 @@ ppl = PreProcessingPipelineWrapper(opts.conf_file)
 sentences = read_csv(opts.input_tweets)['text'].values
 sentences = list(filter(lambda s: s is not np.nan, sentences))
 
-out = list(ppl.transform(sentences))
+out = list(ppl.transform(sentences[:60]))
 
 
 for i in out[:60]: print(i)

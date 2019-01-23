@@ -1,8 +1,8 @@
 
 import re
-import nltk
-from string import punctuation
 import numpy as np
+from nltk.corpus import stopwords
+from string import punctuation
 
 from services.pipelines import BasePipelineComponent
 
@@ -22,59 +22,78 @@ class StopWordsRemoverSvc(BasePipelineComponent):
             print('StopWordsRemoverSvc: No additinal stopwords added')
             self.add_stopwords = None
 
-        # check stopwords
-        self._stop_words = None
-        try:
-            self._stop_words = nltk.corpus.stopwords.words(self.language)
-        except LookupError as err:
-            print('Falied to import stopwords. Trying to download')
+        self._stop_words = stopwords.words(self.language) + self.add_stopwords
 
-            nltk.download('stopwords')
-            stop_words = nltk.corpus.stopwords.words(self.language)
 
-        # raise error if no stop words
-        if not self._stop_words:
-            raise RuntimeError('Cannot load stopwords')
-        else: # append additional stopwords
-            self._stop_words += self.add_stopwords
-
-            
     def transform(self, sents):
         print('StopWordsRemoverSvc')
 
-        snt_filter = lambda snt: list(filter(lambda w: w not in self._stop_words, snt))
+        condition = lambda snt: [w for w in snt if w not in self._stop_words]
+        
+        return map(condition, sents)
 
-        return map(snt_filter, sents)
-
-
-class NanRemoverSvc(BasePipelineComponent):
-
-    def transform(self, sents):
-        print('NanRemoverSvc')
-        snt_filter = lambda snt: list(filter(lambda w: w.isalpha(), snt))
-
-        return map(snt_filter, sents)
 
 class EmojiReplacerSvc(BasePipelineComponent):
 
     wraped_class_def = ['emoji', 'demojize']
     
+    def __init__(self, *args, **kwargs):
+
+        super().__init__(*args, **kwargs)
+
+        if not hasattr(self, 'delimeters'):
+            self.delimeters = [" <","> "]
+    
     def transform(self, sents):
         print('EmojiReplacerSvc')
         # TODO: too slow need to vetorize, or find regexp
-        # TODO: move delimiters to the configuration file
-        
-        return np.array([self.underlying_engine(s, delimiters=(' EMO', 'OJI ')) for s in sents])
 
+        return np.array([self.underlying_engine(s, delimiters=self.delimeters) for s in sents])
+
+class NumberReplacerSvc(BasePipelineComponent):
+
+    wraped_class_def = ['inflect', 'engine']
+
+    def transform(self, sents):
+        print('NumberReplacerSvc')
+
+        replace_func = lambda w: number_to_string(w) if w.isnumeric() else w
+        to_numeric_representation = lambda w: int(w) if w.isdecimal() else float(w)
+
+        number_to_string = lambda n: self.underlying_engine.number_to_words(n)
+        
+
+        condition = lambda snt: [replace_func(w) for w in snt]
+
+        return map(condition, sents)
+
+
+# class NanRemoverSvc(BasePipelineComponent):
+
+#     def transform(self, sents):
+#         print('NanRemoverSvc')
+#         snt_filter = lambda snt: list(filter(lambda w: w.isalpha(), snt))
+
+#         return map(snt_filter, sents)
 
 class TweeterTokenizerSvc(BasePipelineComponent):
 
-    wraped_class_def = ['nltk', 'TweetTokenizer']
+    def __init__(self, *args, **kwargs):
+
+        super().__init__(*args, **kwargs)
+
+        if not hasattr(self, 'lower_case'):
+            self.lower = true
+        import pdb; pdb.set_trace()
+        if self.lower:
+            self._snt_filter = lambda s: s.split().lower()
+        else:
+            self._snt_filter_filter = lambda s: s.split()
 
     def transform(self, sents):
         print('TweeterTokenizerSvc')
-        return np.array([self.underlying_engine.tokenize(s) for s in sents])
 
+        return np.array([self._snt_filter(s) for s in sents])
 
 class BaseRegExpService(BasePipelineComponent):
 
@@ -103,11 +122,10 @@ class HashtagRemoverSvc(BaseRegExpService):
 
 class PunktuationRemoverSvc(BaseRegExpService):
    
-    _regular_expresion = re.compile('[%s]' % re.escape(punctuation))
+    _regular_expresion = re.compile('[%s]' % re.escape(punctuation + "…"))
 
 
 # TODO:
-# make master RegExpClass that builds all regexp into one, or not....
 # use my msg service
 # print info when trnasforming
 # Try to express transoform operations with either numpy or pandas (maybe spark also) operators such that you iterate only once

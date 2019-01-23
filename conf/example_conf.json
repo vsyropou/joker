@@ -5,12 +5,11 @@
 	["services.preprocesing", "HandlesRemoverSvc",     "remove_handles"],
 	["services.preprocesing", "UrlRemoverSvc",         "remove_urls"],
 	["services.preprocesing", "HashtagRemoverSvc",     "remove_hashtags"],
-	["services.preprocesing", "EmojiReplacerSvc",      "replace_emojis"],
 	["services.preprocesing", "PunktuationRemoverSvc", "remove_punktuations"],
+	["services.preprocesing", "EmojiReplacerSvc",      "replace_emojis"],
 	["services.preprocesing", "TweeterTokenizerSvc",   "tokenize"],
 	["services.preprocesing", "StopWordsRemoverSvc",   "remove_stopwords"],
-	["services.preprocesing", "NanRemoverSvc",         "remove_nans"]
-
+	["services.preprocesing", "NumberReplacerSvc",     "replace_number"]
     ],
     "memory": false,
     "remove_urls_conf": {
@@ -18,8 +17,9 @@
  	    "wrapper_persist_removed_urls": true
  	}
     },
-    "remove_hashtags_conf": {
+    "replace_emojis_conf": {
  	"kwargs": {
+	    "wrapper_delimeters": [" <","> "]
 	}
     },
     "remove_stopwords_conf": {
@@ -29,8 +29,7 @@
     },
     "tokenize_conf": {
  	"kwargs": {
- 	    "preserve_case": true,
- 	    "strip_handles": false
+ 	    "wrapper_lower_case": true
  	}
     }
     

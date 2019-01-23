@@ -87,8 +87,9 @@ class BasePipelineComponent(AbsPipelineComponent):
 
             #TODO: parse thjis nicely
             except Exception as err:
-                print('Parse this exception nicely', err)
-
+                print('Module "%s" is required by "%s" but not found. '
+                      'Thowrowing exception.'%(module_name,self.__class__.__name__))
+                raise
 
     def fit(self, sents):
         #TODO: prinout warning that the base method is used and it dows nothing
