@@ -6,9 +6,9 @@ class MessageService():
 
     _instansiated = False
         
-    _print_level = 2
+    _print_level = 3
 
-    _levels = {'ERR ':1, 'INFO':2, 'WARN':3, 'DEBG':4}
+    _levels = {'ERR ':-1, 'INFO':0, 'WARN':1, 'DEBG':2}
 
     _print_filters = [ lambda cls, lvl: cls._levels[lvl] <= cls._print_level 
                        ]
@@ -17,7 +17,7 @@ class MessageService():
     def __init__(self,*args,**kwargs):
 
         if MessageService._instansiated:
-            print('Only on instance of class "%s" is allowed.'%MessageService.__name__)
+            print('Only one instance of class "%s" is allowed.'%MessageService.__name__)
         else:
             MessageService._instansiated = True
         
@@ -101,7 +101,13 @@ class MessageService():
     def warn(msg):
     
         MessageService._my_print(msg,'WARN',traceback.extract_stack()[-2])
-        
+
+
+info = MessageService.info
+error = MessageService.error
+warn = MessageService.warn
+debug = MessageService.debug
+
 
 class ChunkNorisJoke():
     

@@ -5,7 +5,7 @@ from nltk.corpus import stopwords
 from string import punctuation
 
 from services.pipelines import BasePipelineComponent
-
+from services.general import info, warn, error, debug
 
 class StopWordsRemoverSvc(BasePipelineComponent):
 
@@ -15,18 +15,18 @@ class StopWordsRemoverSvc(BasePipelineComponent):
 
         # check attributes
         if not hasattr(self, 'langueage'):
-            print('StopWordsRemoverSvc: assuming default stopwords language "english"')
+            warn('StopWordsRemoverSvc: assuming default stopwords language "english"')
             self.language = 'english'
 
         if not hasattr(self, 'add_stopwords'):
-            print('StopWordsRemoverSvc: No additinal stopwords added')
+            info('StopWordsRemoverSvc: No additinal stopwords added')
             self.add_stopwords = None
 
         self._stop_words = stopwords.words(self.language) + self.add_stopwords
 
 
     def transform(self, sents):
-        print('StopWordsRemoverSvc')
+        info('Transforming sentences')
 
         condition = lambda snt: [w for w in snt if w not in self._stop_words]
         
@@ -45,7 +45,7 @@ class EmojiReplacerSvc(BasePipelineComponent):
             self.delimeters = [" <","> "]
     
     def transform(self, sents):
-        print('EmojiReplacerSvc')
+        info('Transforming sentences')
         # TODO: too slow need to vetorize, or find regexp
 
         return np.array([self.underlying_engine(s, delimiters=self.delimeters) for s in sents])
@@ -55,7 +55,7 @@ class NumberReplacerSvc(BasePipelineComponent):
     wraped_class_def = ['inflect', 'engine']
 
     def transform(self, sents):
-        print('NumberReplacerSvc')
+        info('Transforming sentences')
 
         replace_func = lambda w: number_to_string(w) if w.isnumeric() else w
         to_numeric_representation = lambda w: int(w) if w.isdecimal() else float(w)
@@ -68,14 +68,6 @@ class NumberReplacerSvc(BasePipelineComponent):
         return map(condition, sents)
 
 
-# class NanRemoverSvc(BasePipelineComponent):
-
-#     def transform(self, sents):
-#         print('NanRemoverSvc')
-#         snt_filter = lambda snt: list(filter(lambda w: w.isalpha(), snt))
-
-#         return map(snt_filter, sents)
-
 class TweeterTokenizerSvc(BasePipelineComponent):
 
     def __init__(self, *args, **kwargs):
@@ -83,22 +75,23 @@ class TweeterTokenizerSvc(BasePipelineComponent):
         super().__init__(*args, **kwargs)
 
         if not hasattr(self, 'lower_case'):
-            self.lower = true
-        import pdb; pdb.set_trace()
-        if self.lower:
-            self._snt_filter = lambda s: s.split().lower()
+            self.lower_case = true
+
+        if self.lower_case:
+            self._tokenizer = lambda snt: snt.lower().split()
         else:
-            self._snt_filter_filter = lambda s: s.split()
+            self._tokenizer = lambda snt: snt.split()
 
+        
     def transform(self, sents):
-        print('TweeterTokenizerSvc')
+        info('Transforming sentences')
 
-        return np.array([self._snt_filter(s) for s in sents])
+        return np.array([self._tokenizer(s) for s in sents])
 
 class BaseRegExpService(BasePipelineComponent):
 
     def transform(self, sents):
-        print(self.__class__.__name__)
+        info('Transforming sentences')
         return [re.sub(self._regular_expresion, '', snt) for snt in sents]
 
 class LineBreaksRemoverSvc(BaseRegExpService):
@@ -126,8 +119,6 @@ class PunktuationRemoverSvc(BaseRegExpService):
 
 
 # TODO:
-# use my msg service
-# print info when trnasforming
 # Try to express transoform operations with either numpy or pandas (maybe spark also) operators such that you iterate only once
 
 

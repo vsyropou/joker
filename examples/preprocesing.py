@@ -1,3 +1,6 @@
+from services.general import MessageService
+
+msg_svc = MessageService(print_level = 1)
 
 import argparse
 parser = argparse.ArgumentParser()
