@@ -46,7 +46,6 @@ class EmojiReplacerSvc(BasePipelineComponent):
     
     def transform(self, sents):
         info('Transforming sentences')
-        # TODO: too slow need to vetorize, or find regexp
 
         return np.array([self.underlying_engine(s, delimiters=self.delimeters) for s in sents])
 
