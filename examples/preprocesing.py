@@ -1,6 +1,3 @@
-from services.general import MessageService
-
-msg_svc = MessageService(print_level = 1)
 
 import argparse
 parser = argparse.ArgumentParser()
@@ -10,7 +7,10 @@ opts = parser.parse_args()
 
 import numpy as np
 from pandas import read_csv
+from services.general import MessageService
 from services.pipelines import PreProcessingPipelineWrapper
+
+msg_svc = MessageService(print_level = 1)
 
 ppl = PreProcessingPipelineWrapper(opts.conf_file)
 

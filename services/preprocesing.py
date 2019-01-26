@@ -5,7 +5,7 @@ from nltk.corpus import stopwords
 from string import punctuation
 
 from services.pipelines import BasePipelineComponent
-from services.general import info, warn, error, debug
+from utilities.general import info, warn, error, debug
 
 class StopWordsRemoverSvc(BasePipelineComponent):
 

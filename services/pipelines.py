@@ -1,13 +1,12 @@
-import os
+
 import json
 import abc
-import importlib
-import numpy as np
 
 from pprint import pprint
 from sklearn.pipeline import Pipeline
-from services.general import info, warn, error, debug
-from services.general import _import_module_proxy, _import_class_proxy, _instansiate_engine
+
+from utilities.general import info, warn, error, debug
+from utilities.import_tools import _import_module_proxy, _import_class_proxy, _instansiate_engine
 
 __all__ = ['BasePipelineComponent', 'PreProcessingPipelineWrapper']
 

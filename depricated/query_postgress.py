@@ -18,3 +18,4 @@ for sufix, query, columns in zip(['text', 'full'],
 
     dframe.to_csv('tweets_%s.csv'%sufix)
     
+ 
