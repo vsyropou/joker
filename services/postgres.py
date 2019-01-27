@@ -28,9 +28,6 @@ class AbsPostgressService(abc.ABC):
 
 class BasePostgressService(AbsPostgressService):
 
-    formaters = { 'base' : dict }
-
-    
     def __init__(self):
 
         # check tmp dir path exists
@@ -41,7 +38,8 @@ class BasePostgressService(AbsPostgressService):
         # look for password
         self._check_password()
 
-        
+        self._records_formater =  lambda r: [v for v in r.values()]
+
     def _check_password(self):
                 
         classname = self.__class__.__name__
@@ -73,15 +71,16 @@ class BasePostgressService(AbsPostgressService):
 
             print('Connected to "%s" database @%s.'%(self.database,self.host))
 
-            result = await conn.fetch(qry)
+            records = await conn.fetch(qry)
 
             await conn.close()
             
-            return result
+            return records
 
-        loop = asyncio.get_event_loop()
+        # excecute thread
+        query_result = asyncio.get_event_loop().run_until_complete(run())
 
-        return loop.run_until_complete(run())
+        return list(map(self._records_formater, query_result))
 
 
 class PostgresReaderService(BasePostgressService):

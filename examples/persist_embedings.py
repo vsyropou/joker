@@ -10,7 +10,8 @@ import pandas as pd
 from asyncpg.exceptions import DuplicateTableError
 
 from services.postgres import PostgresReaderService
-from services.postgres_queries import column_names, create_embs_table, copy_csv_to_table
+from utilities.postgres_queries import column_names_qry,\
+    create_embs_table_qry, copy_csv_to_table_qry
 
 # db service
 db = PostgresReaderService()
