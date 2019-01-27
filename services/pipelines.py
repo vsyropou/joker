@@ -6,7 +6,7 @@ from pprint import pprint
 from sklearn.pipeline import Pipeline
 
 from utilities.general import info, warn, error, debug
-from utilities.import_tools import _import_module_proxy, _import_class_proxy, _instansiate_engine
+from utilities.import_tools import import_module_proxy, import_class_proxy, instansiate_engine
 
 __all__ = ['BasePipelineComponent', 'PreProcessingPipelineWrapper']
 
@@ -41,19 +41,15 @@ class PreProcessingPipelineWrapper(Pipeline):
 
         self.pipeline_steps = []
         for module_name, class_name, step_name in specs:
-
-            module_proxy = _import_module_proxy(module_name)
-
-            class_proxy = _import_class_proxy(module_proxy,class_name)
             
             try: # default conf safety
-                class_args   = confs['%s_conf'%step_name].pop('args', [])
-                class_kwargs = confs['%s_conf'%step_name].pop('kwargs', {})
+                args   = confs['%s_conf'%step_name].pop('args', [])
+                kwargs = confs['%s_conf'%step_name].pop('kwargs', {})
             except KeyError as err:
                 warn('No backend configuration found for %s. Using defaults.'%class_name)
-                class_args, class_kwargs = [], {}
+                args, kwargs = [], {}
 
-            class_instance = _instansiate_engine(class_proxy, class_args, class_kwargs)
+            class_instance = instansiate_engine(module_name, class_name, args, kwargs)
                 
             self.pipeline_steps += [(step_name, class_instance)]
         return self.pipeline_steps
@@ -83,16 +79,15 @@ class BasePipelineComponent(AbsPipelineComponent):
             module_name = self.wraped_class_def[0]
             class_name  = self.wraped_class_def[1]
 
-            module_proxy = _import_module_proxy(module_name)
-            class_proxy = _import_class_proxy(module_proxy,class_name)
+            class_proxy = import_class_proxy(module_name, class_name)
 
             # initialize backend engine
             if class_proxy.__class__.__name__ in ['function', 'LazyModule']:
-                engine = class_proxy # some bakends dont need to be initialized
+                # some bakends dont need to be initialized
+                engine = class_proxy
             else:
                 kwargs = {k:v for k,v in kwargs.items() if not k.startswith('wrapper') }
-
-                engine = _instansiate_engine(class_proxy, args, kwargs)
+                engine = instansiate_engine(module_name, class_name, args, kwargs)
 
             setattr(self, "underlying_engine", engine)
 

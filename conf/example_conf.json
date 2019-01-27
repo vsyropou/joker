@@ -27,11 +27,6 @@
 	"kwargs": {
 	    "wrapper_language": "english",
 	    "wrapper_add_stopwords": ["RT", "HT", "TIL", "OH"]}
-    },
-    "tokenize_conf": {
- 	"kwargs": {
- 	    "wrapper_lower_case": true
- 	}
     }
     
 }

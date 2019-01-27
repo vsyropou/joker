@@ -1,29 +1,40 @@
+# Run as: python -i examples/persist_embedings.py <path-to-csv-> --table-suffix glove25 --create-table
+
+import argparse
+parser = argparse.ArgumentParser()
+parser.add_argument("filepath",  help="input csv file path, IN THE DB HOST MACHINE!!!")
+parser.add_argument("--table-name",  type=str, help='table suffix')
+opts = parser.parse_args()
 
 import pandas as pd
+from asyncpg.exceptions import DuplicateTableError
+
 from services.postgres import PostgresReaderService
-from services.postgres_queries import column_names
+from services.postgres_queries import column_names, create_embs_table, copy_csv_to_table
 
-# embedings_file = '/data/glove.twitter.27B/glove.twitter.27B.25d.txt'
-embedings_file = '/data/glove.twitter.27B/test.csv'
-delimeter = ' '
-
+# db service
 db = PostgresReaderService()
 
+table_name = opts.table_name
 column_names = ['word'] + ['embd_%s'%i for i in range(25)]
-# column_types = ['text'] + ['real' for i in range (25)]
+
+# create table, if it does not exist
 column_types = ['text'] + ['numeric(8,6)' for i in range (25)]
 
-# TODO: parameterize as lambda and put in postrgrss_queries
-# create query 
-create = "CREATE TABLE embedingss "
-create += '('
-create += ' id SERIAL PRIMARY KEY, '
-create += ', '.join([' '.join([nam,typ,'NOT NULL ']) for nam, typ in zip(column_names, column_types)])
-create += ' );'
-# copy query
-copy = "COPY embedingss (%s) FROM '%s' DELIMITER ',' CSV"%(', '.join(column_names),
-                                                           embedings_file)
+create_qry = create_embs_table(table_name, column_names, column_types)
+try:
+    db.query(create_qry)
+    print('Creatied table "%s" '%table_name)
+except DuplicateTableError:
+    print('Table "%s" already exists. Skiping '%table_name)
 
-# db.query(create)
 
-#db.query(copy)
+# copy csv to table
+print('Trying to import %s '%opts.filepath)
+print('Make sure the parth refers to the host db machine.')
+
+copy = copy_csv_to_table(table_name, column_names, opts.filepath)
+
+db.query(copy)
+
+

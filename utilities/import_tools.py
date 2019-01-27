@@ -1,19 +1,21 @@
 import importlib
-from utilities.general import error
+from utilities.general import info, error, debug
 
 
-_import = lambda module_name: importlib.import_module(module_name)   
+def import_module_proxy(module_name):
 
-def _import_module_proxy(module_name):
-    try: # import module
-        module_proxy = _import(module_name)
+    try:
+        module_proxy = importlib.import_module(module_name)
     except Exception:
         error('Cannot import module "%s". Make sure there are no typos'
               'and configure your environment properly.'%module_name)
         raise
+
     return module_proxy
 
-def _import_class_proxy(module_proxy, class_name):
+def import_class_proxy(module_name, class_name):
+
+    module_proxy = import_module_proxy(module_name)
     try:
         class_proxy  = getattr(module_proxy, class_name)
     except Exception:
@@ -22,14 +24,18 @@ def _import_class_proxy(module_proxy, class_name):
 
     return class_proxy
 
-def _instansiate_engine(class_proxy, args, kwargs):
+def instansiate_engine(module_name, class_name, args, kwargs):
+
+    class_proxy = import_class_proxy(module_name, class_name)
     try:
         class_instance = class_proxy(*args, **kwargs)
-        info('Instansiated class "%s"'%class_proxy.__name__)
-        if class_args:   debug(' args %s'%args)
-        if class_kwargs: debug(' kwargs %s'%kwargs)
     except Exception:
         print('Cannot instansiate class %s'%(class_proxy.__name__))
+        raise
+
+    info('Instansiated class "%s"'%class_proxy.__name__)
+    if args:   debug(' args %s'%args)
+    if kwargs: debug(' kwargs %s'%kwargs)
 
     return class_instance
 
