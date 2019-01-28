@@ -14,19 +14,20 @@ from services.pipelines import PreProcessingPipelineWrapper
 from services.postgres import PostgresReaderService
 from utilities.postgres_queries import all_tweets_qry
 
+# initialize services
 msg_svc = MessageService(print_level = 2 if opts.verbose else 1)
 
 pipeline = PreProcessingPipelineWrapper(opts.conf_file)
 
-data_svc = PostgresReaderService()
+# get some data
+data_db_svc  = PostgresReaderService()
+query_result = data_db_svc.query(all_tweets_qry(['id','text']))
 
-sentences = data_svc.query(all_tweets_qry(['id','text']))
+tweets = map(lambda tpl: tpl[1], query_result)
+twkeys = map(lambda tpl: tpl[0], query_result)
 
-assert False
-sentences = read_csv(opts.input_tweets)['text'].values
-sentences = list(filter(lambda s: s is not np.nan, sentences))
 
-out = list(pipeline.transform(sentences[:61]))
+out = list(pipeline.transform(list(tweets)[:5]))
 
 
 for i in out[:61]: print(i)

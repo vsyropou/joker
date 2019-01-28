@@ -15,25 +15,31 @@ class PreProcessingPipelineWrapper(Pipeline):
     def __init__(self, conf_file):
 
         # parse configuration
-        step_confs = json.load(open(conf_file,'r'))
+        conf = json.load(open(conf_file,'r'))
 
-        step_specs = step_confs.pop('steps', None) 
-        memory = step_confs.pop('memory', False)
+        try:
+            setattr(self, 'version', conf.pop('pipeline_version'))
+        except Exception:
+            error('Attribute "pipeline_version" is mandatory and was not found in the conf file "%s"'%conf_file)
+            raise
+        
+        memory    = conf.pop('memory', False)
+        steps_cnf = conf.pop('steps', None) 
 
-        assert len(step_specs) >= 1, 'Pipeline without any components.'
-
-        self.pipeline_steps = self._create_steps(step_specs, step_confs)
+        # create pipline steps
+        assert len(steps_cnf) >= 1, 'Pipeline without any components.'
+        self.pipeline_steps = self._create_steps(steps_cnf, conf)
 
         # pipeline backend
         super().__init__(steps=self.pipeline_steps, memory=memory)
 
         try: # pipline backed
-            assert len(step_specs) == len(self.steps), \
+            assert len(steps_cnf) == len(self.steps), \
             'Pipeline components where not appended properly.'
         except AssertionError:
             info('The requested pipeline configuration:')
-            pprint(steps_specs)
-            info('Was parsed by the pipelien backed as follows:')
+            pprint(steps_cnf)
+            info('Was parsed into the pipeline backed as follows:')
             pprint(self.steps)
             raise
 
@@ -41,7 +47,7 @@ class PreProcessingPipelineWrapper(Pipeline):
 
         self.pipeline_steps = []
         for module_name, class_name, step_name in specs:
-            
+
             try: # default conf safety
                 args   = confs['%s_conf'%step_name].pop('args', [])
                 kwargs = confs['%s_conf'%step_name].pop('kwargs', {})
@@ -50,7 +56,7 @@ class PreProcessingPipelineWrapper(Pipeline):
                 args, kwargs = [], {}
 
             class_instance = instansiate_engine(module_name, class_name, args, kwargs)
-                
+
             self.pipeline_steps += [(step_name, class_instance)]
         return self.pipeline_steps
 
@@ -64,7 +70,7 @@ class AbsPipelineComponent(abc.ABC):
     @abc.abstractmethod
     def transform(self, sents):
         pass
-            
+
 class BasePipelineComponent(AbsPipelineComponent):
 
     def __init__(self, *args, **kwargs):
@@ -91,6 +97,14 @@ class BasePipelineComponent(AbsPipelineComponent):
 
             setattr(self, "underlying_engine", engine)
 
+    def _check_derived_class_argument(self, argument, default_value):
+
+        if not hasattr(self, argument):
+            class_name = self.__class__.__name__
+            warn('%s: no value was found for argument "%s" assuming default "%s"'%(class_name,
+                                                                                   argument, default_value))
+            setattr(self, argument, default_value)
+            
     def fit(self, sents):
         warn('Default "%s.fit" method does not do anything'%self.__class__.__name__)
         return sents

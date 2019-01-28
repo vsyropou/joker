@@ -1,12 +1,15 @@
 
 import re
+import abc
 import numpy as np
+
 from nltk.corpus import stopwords
 from string import punctuation
 
 from services.pipelines import BasePipelineComponent
 from utilities.general import info, warn, error, debug
-
+from utilities.import_tools import instansiate_engine
+from utilities.postgres_queries import get_embeding_qry, get_embeding_batch_qry
 
 class BaseRegExpService(BasePipelineComponent):
 
@@ -22,14 +25,11 @@ class StopWordsRemoverSvc(BasePipelineComponent):
         super().__init__(*args, **kwargs)
 
         # check attributes
-        if not hasattr(self, 'langueage'):
-            warn('StopWordsRemoverSvc: assuming default stopwords language "english"')
-            self.language = 'english'
+        for arg, val in zip(["language", "add_stopwords"],
+                            ["english", None]):
+            self._check_derived_class_argument(arg, val)
 
-        if not hasattr(self, 'add_stopwords'):
-            info('StopWordsRemoverSvc: No additinal stopwords added')
-            self.add_stopwords = None
-
+        # update stopwords
         self._stop_words =  stopwords.words(self.language)
         self._stop_words += list(map(str.lower, self.add_stopwords))
 
@@ -49,8 +49,7 @@ class EmojiReplacerSvc(BasePipelineComponent):
 
         super().__init__(*args, **kwargs)
 
-        if not hasattr(self, 'delimeters'):
-            self.delimeters = [" <","> "]
+        self._check_derived_class_argument('delimeters', [" <","> "])
 
     def transform(self, sents):
         info('Transforming sentences')
@@ -83,7 +82,7 @@ class TweeterTokenizerSvc(BasePipelineComponent):
 
         return np.array([self._tokenizer(s) for s in sents])
 
-
+    
 class LineBreaksRemoverSvc(BaseRegExpService):
 
     _regular_expresion = re.compile("/(\r\n)+|\r+|\n+|\t+/i")
@@ -106,3 +105,69 @@ class HashtagRemoverSvc(BaseRegExpService):
 class PunktuationRemoverSvc(BaseRegExpService):
 
     _regular_expresion = re.compile('[%s]' % re.escape(punctuation + "…"))
+
+
+
+class WordEmbedingsPgSvc(BasePipelineComponent):
+
+    def __init__(self, *args, **kwargs):
+        
+        super().__init__(*args, **kwargs)
+
+        # check attributes
+        for arg, val in zip(["language_model", "persist_sentences", "persist_unknown_words"],
+                            ["embedingsglove25", False, False]):
+            self._check_derived_class_argument(arg, val)
+
+
+        # embedings engine
+        if self.persist_sentences or self.persist_unknown_words:
+            self._backend = instansiate_engine('services.postgres', 'PostgresWriterService').query
+        else:
+            self._backend = instansiate_engine('services.postgres', 'PostgresReaderService').query
+
+        self._embedings_engine = lambda wrd: self._backend(get_embeding_qry(wrd, self.language_model))
+
+
+    def word_to_embeding(self, wrd):
+        #TODO: Too may queries. With custom order by you can get the embedings in the same order as the sentece 
+
+        # lookup embeding
+        embd = None
+        try: 
+            embd = self._embedings_engine(wrd)
+        except Exception:
+            error("Error during embedings lookup")
+            raise
+
+        # handle no embeding case
+        if not embd:
+            warn('Language model "%s" does not include the word "%s", ommiting.'%(self.language_model,wrd))
+
+            if self.persist_unknown_words:
+                info('Persisting uknown word "%s"'%wrd)
+                #TODO: write create table and insert word query 
+                # self._engine_backend(<persist_query>)
+
+        return embd[0][0] if embd else None
+
+   
+    def transform(self, sents):
+        info('Transforming sentences')
+
+        sentence_embeding = lambda snt: [self.word_to_embeding(w) for w in snt]
+
+        embeded_sentences = map(sentence_embeding, sents)
+        
+        out_sentences = [[w for w in snt if w] for snt in embeded_sentences]
+        
+#        import pdb; pdb.set_trace()        
+
+        if self.persist_sentences:
+            # persist_sentence = self._backend("persist_query")
+             # embeded_sents)
+            info('Will persist tweet, asynchronously')
+
+        return out_sentences
+        
+

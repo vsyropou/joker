@@ -24,13 +24,27 @@ def import_class_proxy(module_name, class_name):
 
     return class_proxy
 
-def instansiate_engine(module_name, class_name, args, kwargs):
+def instansiate_engine(*arguments):
 
+    # check required args
+    assert len(arguments) >= 2, error('Parsed arguments "%s" cannot be used to instantiate class')
+    module_name = arguments[0]
+    class_name  = arguments[1]
+    assert type(module_name) == type(class_name) == str, \
+        error('Module and class names must be of "str" type. Got "%s" and "%s" instead.'%(type(module_name),type(class_name)))
+
+    # check optional args
+    args   = arguments[2] if len(arguments) >= 3 else []
+    kwargs = arguments[3] if len(arguments) == 4 else {}
+    if args:   assert type(args) == list,   error('Cannot parse "%s" args correctly'%class_name)
+    if kwargs: assert type(kwargs) == dict, error('Cannot parse "%s" kwargs correctly'%class_name)
+
+    # instansiate
     class_proxy = import_class_proxy(module_name, class_name)
     try:
         class_instance = class_proxy(*args, **kwargs)
     except Exception:
-        print('Cannot instansiate class %s'%(class_proxy.__name__))
+        print('Cannot instansiate class "%s"'%(class_proxy.__name__))
         raise
 
     info('Instansiated class "%s"'%class_proxy.__name__)

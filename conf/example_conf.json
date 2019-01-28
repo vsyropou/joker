@@ -1,32 +1,38 @@
 
-
-{
-    "steps": [
-	["services.preprocesing", "LineBreaksRemoverSvc",  "remove_lbreaks"],
-	["services.preprocesing", "HandlesRemoverSvc",     "remove_handles"],
-	["services.preprocesing", "UrlRemoverSvc",         "remove_urls"],
-	["services.preprocesing", "HashtagRemoverSvc",     "remove_hashtags"],
-	["services.preprocesing", "PunktuationRemoverSvc", "remove_punktuations"],
-	["services.preprocesing", "EmojiReplacerSvc",      "replace_emojis"],
-	["services.preprocesing", "TweeterTokenizerSvc",   "tokenize"],
-	["services.preprocesing", "StopWordsRemoverSvc",   "remove_stopwords"],
-	["services.preprocesing", "NumberReplacerSvc",     "replace_number"]
-    ],
-    "memory": false,
-    "remove_urls_conf": {
- 	"kwargs": {
- 	    "wrapper_persist_removed_urls": true
- 	}
-    },
-    "replace_emojis_conf": {
- 	"kwargs": {
-	    "wrapper_delimeters": [" <","> "]
-	}
-    },
-    "remove_stopwords_conf": {
-	"kwargs": {
-	    "wrapper_language": "english",
-	    "wrapper_add_stopwords": ["RT", "HT", "TIL", "OH"]}
-    }
-    
+{"pipeline_version": "v0.1",
+ "steps": [
+     ["services.preprocesing", "LineBreaksRemoverSvc",  "remove_lbreaks"],
+     ["services.preprocesing", "HandlesRemoverSvc",     "remove_handles"],
+     ["services.preprocesing", "UrlRemoverSvc",         "remove_urls"],
+     ["services.preprocesing", "HashtagRemoverSvc",     "remove_hashtags"],
+     ["services.preprocesing", "PunktuationRemoverSvc", "remove_punktuations"],
+     ["services.preprocesing", "EmojiReplacerSvc",      "replace_emojis"],
+     ["services.preprocesing", "TweeterTokenizerSvc",   "tokenize"],
+     ["services.preprocesing", "StopWordsRemoverSvc",   "remove_stopwords"],
+     ["services.preprocesing", "NumberReplacerSvc",     "replace_number"],
+     ["services.preprocesing", "WordEmbedingsPgSvc",    "map_word_to_embeding_indices"]
+ ],
+ "memory": false,
+ "remove_urls_conf": {
+     "kwargs": {
+ 	 "wrapper_persist_removed_urls": true
+     }
+ },
+ "replace_emojis_conf": {
+     "kwargs": {
+	 "wrapper_delimeters": [" <","> "]
+     }
+ },
+ "remove_stopwords_conf": {
+     "kwargs": {
+	 "wrapper_language": "english",
+	 "wrapper_add_stopwords": ["RT", "HT", "TIL", "OH"]}
+ },
+ "map_word_to_embeding_indices_conf":{
+     "kwargs":{
+	 "wrapper_language_model": "embedingsglove25",
+	 "wrapper_persist_sentences": true,
+	 "wrapper_persist_unknown_words": true
+     }
+ }
 }

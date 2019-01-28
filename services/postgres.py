@@ -4,6 +4,7 @@ import json
 import asyncio
 import asyncpg
 
+from utilities.general import info
 
 __all__ = ['PostgresReaderService', 'PostgresWriterService']
 
@@ -27,7 +28,7 @@ class AbsPostgressService(abc.ABC):
 
 
 class BasePostgressService(AbsPostgressService):
-
+    
     def __init__(self):
 
         # check tmp dir path exists
@@ -38,7 +39,10 @@ class BasePostgressService(AbsPostgressService):
         # look for password
         self._check_password()
 
-        self._records_formater =  lambda r: [v for v in r.values()]
+        # format records
+        self.records_formater = lambda r: [v for v in r.values()]
+
+        info('Instantiated db client to: "%s" database @%s.'%(self.database,self.host))
 
     def _check_password(self):
                 
@@ -56,20 +60,18 @@ class BasePostgressService(AbsPostgressService):
 
     def query(self,qry):
 
+        # TODO: put pwd check into the async thread
         # load password
         with open(self._credentials_path,'r') as fp:
             pwd = json.load(fp)
         
         args = [self.user, self.host, pwd, self.database]
 
-        # TODO: connect only once ??
         async def run():
             conn = await asyncpg.connect(user = self.user,
                                          password = pwd,
                                          database = self.database,
                                          host = self.host)
-
-            print('Connected to "%s" database @%s.'%(self.database,self.host))
 
             records = await conn.fetch(qry)
 
@@ -80,7 +82,7 @@ class BasePostgressService(AbsPostgressService):
         # excecute thread
         query_result = asyncio.get_event_loop().run_until_complete(run())
 
-        return list(map(self._records_formater, query_result))
+        return list(map(self.records_formater, query_result))
 
 
 class PostgresReaderService(BasePostgressService):
