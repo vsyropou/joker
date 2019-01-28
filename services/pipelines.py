@@ -43,7 +43,7 @@ class PreProcessingPipelineWrapper(Pipeline):
     def _create_steps(self, specs, confs):
 
         self.pipeline_steps = []
-        for module_name, class_name, step_name in specs:
+        for order, (module_name, class_name, step_name) in enumerate(specs):
 
             try: # default conf safety
                 args   = confs['%s_conf'%step_name].pop('args', [])
@@ -52,6 +52,8 @@ class PreProcessingPipelineWrapper(Pipeline):
                 warn('No backend configuration found for %s. Using defaults.'%class_name)
                 args, kwargs = [], {}
 
+            kwargs['wrapper_order'] = order + 1
+            kwargs['wrapper_num_pipeline_steps'] = len(self.pipeline_steps) + 1
             class_instance = instansiate_engine(module_name, class_name, args, kwargs)
 
             self.pipeline_steps += [(step_name, class_instance)]

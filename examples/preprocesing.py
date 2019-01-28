@@ -38,9 +38,5 @@ msg_svc = MessageService(print_level = 2 if opts.verbose else 1)
 pipeline = PreProcessingPipelineWrapper(conf)
 
 
-# process tweets
-
 out = list(pipeline.transform(list(tweets)))
 
-
-for i in out[:61]: print(i)
