@@ -1,8 +1,9 @@
 
 import re
 import abc
+import asyncio
 import numpy as np
-
+import threading
 from nltk.corpus import stopwords
 from string import punctuation
 
@@ -66,7 +67,7 @@ class StopWordsRemoverSvc(BasePipelineComponent):
 
 
 class EmojiReplacerSvc(BasePipelineComponent):
-
+    #TODO: Too slow maybe multithread??
     wraped_class_def = ['emoji', 'demojize']
     
     def __init__(self, *args, **kwargs):
@@ -111,9 +112,10 @@ class WordEmbedingsPgSvc(BasePipelineComponent):
         super().__init__(*args, **kwargs)
 
         # check attributes
-        for arg, val in zip(["language_model", "persist_sentences", "persist_unknown_words", "sentence_ids"],
-                            ["embedingsglove25", False, False, None]):
+        for arg, val in zip(["language_model", "persist_sentences", "persist_unknown_words", "sentence_ids", "sentence_lang"],
+                            ["embedingsglove25", False, False, None, None]):
             self._check_derived_class_argument(arg, val)
+        #TODO: check that you have teh ids and language in case the corresponding flags are true
 
         # embedings engine
         if self.persist_sentences or self.persist_unknown_words:
@@ -124,6 +126,7 @@ class WordEmbedingsPgSvc(BasePipelineComponent):
         self._embedings_engine = lambda wrd: self._backend(get_embeding_qry(wrd, self.language_model))
 
 
+    #def word_to_embeding(self, wrd, lang=None):
     def word_to_embeding(self, wrd):
         #TODO: Too may queries. With custom order by you can get the embedings in the same order as the sentece 
 
@@ -135,32 +138,56 @@ class WordEmbedingsPgSvc(BasePipelineComponent):
             error("Error during embedings lookup")
             raise
 
-        # handle no embeding case
-        if not embd:
-            warn('Language model "%s" does not include the word "%s", ommiting.'%(self.language_model,wrd))
-
-            if self.persist_unknown_words:
-                info('Persisting uknown word "%s"'%wrd)
-                #TODO: write create table and insert word query 
-                # self._engine_backend(<persist_query>)
-
         return embd[0][0] if embd else None
 
 
     def transform(self, sents):
         info('Progressing %s/%s steps (%s)'%(self.order, self.num_pipeline_steps, self.__class__.__name__))
+        #TODO: split transform in two _transform_ functions
+ 
         sentence_embeding = lambda snt: [self.word_to_embeding(w) for w in snt]
+        embeded_sentences = [sentence_embeding(snt) for snt in sents ]
 
-        embeded_sentences = map(sentence_embeding, sents)
+        # continue assyncchronously
+        #TODO: If you cannot do it with asyncio use threadpool that you know better
+        async def excecute_threads():
+            if self.persist_sentences:
+                persist_snt = await self._async_persist_sentences(embeded_sentences)    
+            if self.persist_unknown_words:
+                persist_unk = await self._async_persist_unknown_words(embeded_sentences)
+            print(threading.currentThread().getName())
+            return persist_snt, persist_unk
+
+        loop = asyncio.get_event_loop()
+        result = loop.run_until_complete(excecute_threads())
+        # loop.close()
+
+        print(threading.currentThread().getName())
+        import pdb;pdb.set_trace()
+        return [[w for w in snt if w] for snt in embeded_sentences]
+
+    async def _async_persist_sentences(self, embeded_sentences):
+        info('Will persist tweet, asynchronously')
+        print(threading.currentThread().getName())
+        sntn = lambda tpl: [w for w in tpl[0]]
+        twid = lambda tpl: tpl[1]
+
+        raw_insert_data = [(twid(tpl),sntn(tpl)) for tpl in zip(embeded_sentences,
+                                                                self.sentence_ids)]
         
-        out_sentences = [[w for w in snt if w] for snt in embeded_sentences]
+        return True # TOD: if success..
 
-        if self.persist_sentences:
-            # import pdb; pdb.set_trace()
-            # persist_sentence = self._backend("persist_query")
-             # embeded_sents)
-            info('Will persist tweet, asynchronously')
+    async def _async_persist_unknown_words(self, embeded_sentences):
+        info('Will persist unknown words, asynchronously')
+        print(threading.currentThread().getName())
+        sntn = lambda tpl: [w for w in tpl[0]]
+        twid = lambda tpl: tpl[1]
+        lang = lambda tpl: tpl[2]
 
-        return out_sentences
+        iterables = [embeded_sentences, self.sentence_ids, self.sentence_lang]
+        out = [(sntn(tpl),twid(tpl),lang(tpl)) for tpl in zip(*iterables)]
+
+        # handle no embeding case
+        # warn('Language model "%s": ommiting the word "%s".'%(self.language_model,wrd))
         
-
+        return True # TOD: if success..

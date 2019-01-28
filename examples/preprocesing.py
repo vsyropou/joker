@@ -16,20 +16,22 @@ from services.postgres import PostgresReaderService
 from utilities.postgres_queries import all_tweets_qry
 
 
-limit = 5 # for developing
+limit = 2 # for developing
 
 # get some data
 data_db_svc  = PostgresReaderService()
-query_result = data_db_svc.query(all_tweets_qry(['id','text']))
+query_result = data_db_svc.query(all_tweets_qry(['id','text', 'lang']))
 
 tweets = list(map(lambda tpl: tpl[1], query_result))[:limit]
 twkeys = list(map(lambda tpl: tpl[0], query_result))[:limit]
+twlang = list(map(lambda tpl: tpl[2], query_result))[:limit]
 
 
 # configure pipeline
 conf = json.load(open(opts.conf_file,'r'))
 
 conf['map_word_to_embeding_indices_conf']['kwargs']['wrapper_sentence_ids'] = twkeys
+conf['map_word_to_embeding_indices_conf']['kwargs']['wrapper_sentence_lang'] = twlang
 
 
 # initialize services
