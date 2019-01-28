@@ -115,10 +115,9 @@ class WordEmbedingsPgSvc(BasePipelineComponent):
         super().__init__(*args, **kwargs)
 
         # check attributes
-        for arg, val in zip(["language_model", "persist_sentences", "persist_unknown_words"],
-                            ["embedingsglove25", False, False]):
+        for arg, val in zip(["language_model", "persist_sentences", "persist_unknown_words", "sentence_ids"],
+                            ["embedingsglove25", False, False, None]):
             self._check_derived_class_argument(arg, val)
-
 
         # embedings engine
         if self.persist_sentences or self.persist_unknown_words:
@@ -160,10 +159,9 @@ class WordEmbedingsPgSvc(BasePipelineComponent):
         embeded_sentences = map(sentence_embeding, sents)
         
         out_sentences = [[w for w in snt if w] for snt in embeded_sentences]
-        
-#        import pdb; pdb.set_trace()        
 
         if self.persist_sentences:
+            import pdb; pdb.set_trace()
             # persist_sentence = self._backend("persist_query")
              # embeded_sents)
             info('Will persist tweet, asynchronously')

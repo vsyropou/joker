@@ -1,5 +1,4 @@
 
-import json
 import abc
 
 from pprint import pprint
@@ -12,11 +11,9 @@ __all__ = ['BasePipelineComponent', 'PreProcessingPipelineWrapper']
 
 class PreProcessingPipelineWrapper(Pipeline):
 
-    def __init__(self, conf_file):
+    def __init__(self, conf):
 
         # parse configuration
-        conf = json.load(open(conf_file,'r'))
-
         try:
             setattr(self, 'version', conf.pop('pipeline_version'))
         except Exception:

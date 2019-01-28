@@ -58,16 +58,13 @@ class BasePostgressService(AbsPostgressService):
             with open(self._credentials_path, 'w+') as fp:
                 json.dump(pwd,fp)
 
-    def query(self,qry):
-
-        # TODO: put pwd check into the async thread
-        # load password
-        with open(self._credentials_path,'r') as fp:
-            pwd = json.load(fp)
-        
-        args = [self.user, self.host, pwd, self.database]
+    def query(self, qry):
 
         async def run():
+
+            with open(self._credentials_path,'r') as fp:
+                pwd = json.load(fp)
+        
             conn = await asyncpg.connect(user = self.user,
                                          password = pwd,
                                          database = self.database,
