@@ -16,7 +16,7 @@ from services.postgres import PostgresReaderService
 from utilities.postgres_queries import all_tweets_qry
 
 
-limit = 2 # for developing
+limit = 5 # for developing
 
 # get some data
 data_db_svc  = PostgresReaderService()

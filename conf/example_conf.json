@@ -32,7 +32,9 @@
      "kwargs":{
 	 "wrapper_language_model": "embedingsglove25",
 	 "wrapper_persist_sentences": true,
-	 "wrapper_persist_unknown_words": true
+	 "wrapper_persist_unknown_words": true,
+	 "wrapper_multithread": true,
+	 "wrapper_workers": 5
      }
  }
 }
