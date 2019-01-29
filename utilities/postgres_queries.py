@@ -22,11 +22,18 @@ create_embs_table_qry = lambda nam, cnam, ctyp: "CREATE TABLE %s"%(nam) + \
                                                 ", ".join([' '.join([n,t,'NOT NULL ']) for n,t in zip(cnam,ctyp)]) +\
                                                 ');'
 
-create_unknown_words_table_qry = lambda nam : "CREATE TABLE %s"%(nam) + \
-                                              " (word text NOT NULL, lang varchar(5), PRIMARY KEY (word))"
-
 get_embeding_qry = lambda wrd, wmodel, col='id':"SELECT %s FROM %s WHERE word='%s'"%(col, wmodel, wrd)
 
 get_embeding_batch_qry = lambda wrds, wmodel, col='id':"SELECT %s FROM %s "%(col, wmodel) + \
                                                        "WHERE %s"%( ' or '.join([ "word='%s'"%w for w in wrds ]))
+
+# vocabulary
+create_unknown_words_table_qry = lambda nam : "CREATE TABLE %s"%(nam) + \
+                                              " (word text NOT NULL, lang varchar(5), PRIMARY KEY (word))"
+
+create_embeding_keys_tweets_table_qry = lambda nam : "CREATE TABLE %s"%(nam) + \
+                                                     " (tweet_id bigint NOT NULL, embeding_keys_array integer[], PRIMARY KEY (tweet_id))"
+
+insert_embeding_keys_tweets_table_qry = lambda nam, vals : "INSERT INTO %s"%(nam) + \
+                                                           " VALUES %s"%vals
 
