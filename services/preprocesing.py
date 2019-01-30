@@ -11,8 +11,7 @@ from asyncpg.exceptions import UniqueViolationError
 from services.pipelines import BasePipelineComponent
 from utilities.general import info, warn, error, debug
 from utilities.import_tools import instansiate_engine
-from utilities.postgres_queries import (insert_embeding_keys_tweets_table_qry,
-                                        get_embeding_qry, get_embeding_batch_qry)
+from utilities.postgres_queries import insert_qry, get_embeding_qry, get_embeding_batch_qry
 
 
 class BaseRegExpService(BasePipelineComponent):
@@ -135,7 +134,7 @@ class WordEmbedingsPgSvc(BasePipelineComponent):
         sentence_embeding = lambda snt: [self.word_to_embeding(w) for w in snt]
         embeded_sentences = [sentence_embeding(snt) for snt in sents]
 
-        unkown_words_filter = lambda embd_snts: [[w for w in snt if w] for snt in embd_snts]
+        unkown_words_filter = lambda embd_snts: [[w for w in snt if str!=type(w)==int] for snt in embd_snts]
 
         # collect tasks
         operators = {}
@@ -150,20 +149,15 @@ class WordEmbedingsPgSvc(BasePipelineComponent):
             results = self._transform_multithread(operators, embeded_sentences)
         else:
             results = self._transform_singlethread(operators, embeded_sentences)
-        import pdb ; pdb.set_trace()
+
         return results['unknown_words_filter']
 
     def word_to_embeding(self, wrd):
 
-        # lookup embeding
-        embd = None
-        try: 
-            embd = self._embedings_engine(wrd)
+        try: # lookup embeding 
+            return self._embedings_engine(wrd)[0][0]
         except Exception:
-            error("Error during embedings lookup")
-            raise
-
-        return embd[0][0] if embd else None
+            return wrd
 
     def _transform_singlethread(self, operators_dict, embeded_sents):
 
@@ -181,41 +175,52 @@ class WordEmbedingsPgSvc(BasePipelineComponent):
     
     def _persist_sentences(self, embeded_sentences):
 
-        # helping stuff
-        def persist(row):
-            rtrn = True
-            #TODO: make table name configurable
-            table_name = 'tweets_embeding_keys_%s'%self.language_model
-            try:
-                self._db_backend(insert_embeding_keys_tweets_table_qry(table_name, row))
-            except UniqueViolationError:
-                rtrn = False
-            info('Persisted embeded keys for tweet id: %s'%row[0].split(',')[0][1:])
-            return rtrn
-
-        sntn = lambda tpl: [w for w in tpl[0] if w]
+        sntn = lambda tpl: [w for w in tpl[0] if str!=type(w)==int]
         twid = lambda tpl: tpl[1]
         wrap = lambda itm: itm.replace("[","'{").replace("]","}'")
         frmt = lambda tpl: wrap('(%s, %s)'%(twid(tpl),sntn(tpl)))
 
         # prepare query and insert
         insert_data = [frmt(tpl) for tpl in zip(embeded_sentences,
-                                                self.sentence_ids)]        
+                                                self.sentence_ids)]
         
-        return [persist(row) for row in insert_data]
+        table_name = 'tweets_embeding_keys_%s'%self.language_model
 
-    def _persist_unknown_words(self, embeded_sentences):
-        info('Will persist unknown words')
+        return [persist(self._db_backend,
+                        insert_qry(table_name, row))  for row in insert_data]
 
+    def _persist_unknown_words(self, embeded_sents):
+        embeded_sents[0] = embeded_sents[0] + ['csacdsacsda']
+        
         # helping stuff
-        sntn = lambda tpl: [w for w in tpl[0]]
-        twid = lambda tpl: tpl[1]
-        lang = lambda tpl: tpl[2]
+        uwrds = lambda snt: [w for w in snt if str==type(w)!=int]
 
-        iterables = [embeded_sentences, self.sentence_ids, self.sentence_lang]
-        out = [(sntn(tpl),twid(tpl),lang(tpl)) for tpl in zip(*iterables)]
+        unknown_words_nested = [ [(uw,ln) for uw in uwrds(snt)] for snt, ln in zip(embeded_sents,
+                                                                                   self.sentence_lang) if uwrds(snt)]
 
-        # handle no embeding case
-        # warn('Language model "%s": ommiting the word "%s".'%(self.language_model,wrd))
-        
-        return True # TOD: if success..
+        unknown_words_flatned = [(uw,l) for unwnst in unknown_words_nested for uw,l in unwnst ]
+
+        import pdb; pdb.set_trace()
+
+        # todo: fix this
+        return [ persist(self._db_backend,
+                         insert_qry(', '. join(["('%s','%s')"%row])) )for row in unknown_words_flatned]
+
+
+
+# helping stuff
+def persist(backend, insert_qry):
+    rtrn = True
+    #TODO: make table name configurable
+    try:
+        backend(insert_qry)
+        debug('Excecuted query: %s'%insert_qry)
+    except UniqueViolationError:
+        rtrn = False
+    except Exception:
+        warn('Cannot excecuted query: %s'%insert_qry)
+        rtrn = False
+
+    return rtrn
+
+    
