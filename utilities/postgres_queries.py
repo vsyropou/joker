@@ -3,7 +3,6 @@
 all_tweets_qry = lambda cols, tabl='tweets': "SELECT %s "%(','.join(cols)) + \
                                              "FROM %s"%tabl
 
-
 # get column names of a table
 column_names_qry = lambda t: "SELECT column_name " \
                              "FROM information_schema.columns " \
@@ -37,4 +36,6 @@ create_unknown_words_table_qry = lambda nam : "CREATE TABLE %s"%(nam) + \
 create_embeding_keys_tweets_table_qry = lambda nam : "CREATE TABLE %s"%(nam) + \
                                                      " (tweet_id bigint NOT NULL, embeding_keys_array integer[], PRIMARY KEY (tweet_id))"
 
-
+# urls
+create_urls_table_qry = lambda nam : "CREATE TABLE %s"%(nam) + \
+                        " (tweet_id bigint NOT NULL, url text NOT NULL, PRIMARY KEY (tweet_id))"

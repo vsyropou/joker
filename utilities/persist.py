@@ -3,9 +3,10 @@ from utilities.postgres_queries import insert_qry
 from utilities.general import info, warn, error, debug
 
 def persist(backend, insert_qry):
-    try:
+    
+    try: # insert query
         backend(insert_qry)
-        debug('Excecuted query: %s'%insert_qry)
+        info('Excecuted query: %s'%insert_qry)
         rtrn = True
     except UniqueViolationError as err:
         warn('Caught "UniqueViolationError" when executing: %s'%insert_qry)
@@ -14,6 +15,7 @@ def persist(backend, insert_qry):
     except Exception as err:
         warn('Cannot excecuted query: %s'%insert_qry)
         warn(err)
+
         rtrn = False
     return rtrn
 

@@ -179,7 +179,7 @@ class WordEmbedingsPgSvc(BasePipelineComponent):
             pool = ThreadPool(processes=self.workers)
             #TODO: Does it really run asscynchronouysly if you hit get immediately?? Investigate
             thread = lambda op, nam: pool.apply_async(op, arguments[nam]).get()
-            
+
             results =  { nam : thread(opr,nam) for nam, opr in operators.items()}
 
         else:
