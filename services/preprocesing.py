@@ -6,11 +6,11 @@ import numpy as np
 from nltk.corpus import stopwords
 from string import punctuation
 from multiprocessing.pool import ThreadPool 
-from asyncpg.exceptions import UniqueViolationError
 
 from services.pipelines import BasePipelineComponent
 from utilities.general import info, warn, error, debug
 from utilities.import_tools import instansiate_engine
+from utilities.persist import persist_sentences, persist_unknown_words, persist
 from utilities.postgres_queries import insert_qry, get_embeding_qry, get_embeding_batch_qry
 
 
@@ -114,8 +114,8 @@ class WordEmbedingsPgSvc(BasePipelineComponent):
 
         # check attributes
         for arg, val in zip(["language_model", "persist_sentences", "persist_unknown_words",
-                             "sentence_ids", "sentence_lang", 'multithread', 'workers'],
-                            ["embedingsglove25", False, False, None, None, False, 5]):
+                             "sentence_ids", "sentence_lang", 'table_names', 'multithread', 'workers'],
+                            ["embedingsglove25", False, False, None, None, {}, False, 5]):
             self._check_derived_class_argument(arg, val)
         #TODO: check that you have the ids and language in case the corresponding flags are true
 
@@ -134,21 +134,30 @@ class WordEmbedingsPgSvc(BasePipelineComponent):
         sentence_embeding = lambda snt: [self.word_to_embeding(w) for w in snt]
         embeded_sentences = [sentence_embeding(snt) for snt in sents]
 
+        #TODO: remove some stuff from here, like colelcting tasks
         unkown_words_filter = lambda embd_snts: [[w for w in snt if str!=type(w)==int] for snt in embd_snts]
+
+        table_names = lambda key: '%s_%s'%(self.table_names[key],self.language_model)
+        base_args = [self._db_backend, embeded_sentences]
+        arguments = {'unknown_words_filter': [embeded_sentences],
+                     'persist_sentences': base_args + [self.sentence_ids, table_names('persist_sentences')],
+                     'persist_unknown_words': base_args + [self.sentence_lang, table_names('persist_unknown_words')]
+                     }
 
         # collect tasks
         operators = {}
         for name, func, flag in zip(['unknown_words_filter','persist_sentences',     'persist_unknown_words'],
-                                    [unkown_words_filter,   self._persist_sentences, self._persist_unknown_words],
+                                    [unkown_words_filter,   persist_sentences, persist_unknown_words],
                                     [True,                  self.persist_sentences,  self.persist_unknown_words]):
+
             if flag:
                 operators[name] = func
 
         # multi or single thread ?
         if self.multithread:
-            results = self._transform_multithread(operators, embeded_sentences)
+            results = self._transform_multithread(operators, arguments)
         else:
-            results = self._transform_singlethread(operators, embeded_sentences)
+            results = self._transform_singlethread(operators, arguments)
 
         return results['unknown_words_filter']
 
@@ -159,68 +168,15 @@ class WordEmbedingsPgSvc(BasePipelineComponent):
         except Exception:
             return wrd
 
-    def _transform_singlethread(self, operators_dict, embeded_sents):
+    def _transform_singlethread(self, operators_dict, args):
 
-        return { nam : opr(embeded_sents) for nam, opr in operators_dict.items()}
+        return { nam : opr(*args[nam]) for nam, opr in operators_dict.items()}
 
-    def _transform_multithread(self, operators_dict, embeded_sents):
+    def _transform_multithread(self, operators_dict, args):
         #TODO: make a non async postgres; or return futures from asyncpg to main thread where there is an event loop  
         pool = ThreadPool(processes=self.workers)
-
-        thread = lambda op: pool.apply_async(op, [embeded_sents]).get()
-            
-        return { nam : thread(opr) for nam, opr in operators_dict.items()}
         #TODO: Does it really run asscynchronouysly if you hit get immediately?? Investigate
+        thread = lambda op, nam: pool.apply_async(op, args[nam]).get()
+            
+        return { nam : thread(opr,nam) for nam, opr in operators_dict.items()}
 
-    
-    def _persist_sentences(self, embeded_sentences):
-
-        sntn = lambda tpl: [w for w in tpl[0] if str!=type(w)==int]
-        twid = lambda tpl: tpl[1]
-        wrap = lambda itm: itm.replace("[","'{").replace("]","}'")
-        frmt = lambda tpl: wrap('(%s, %s)'%(twid(tpl),sntn(tpl)))
-
-        # prepare query and insert
-        insert_data = [frmt(tpl) for tpl in zip(embeded_sentences,
-                                                self.sentence_ids)]
-        
-        table_name = 'tweets_embeding_keys_%s'%self.language_model
-
-        return [persist(self._db_backend,
-                        insert_qry(table_name, row))  for row in insert_data]
-
-    def _persist_unknown_words(self, embeded_sents):
-        embeded_sents[0] = embeded_sents[0] + ['csacdsacsda']
-        
-        # helping stuff
-        uwrds = lambda snt: [w for w in snt if str==type(w)!=int]
-
-        unknown_words_nested = [ [(uw,ln) for uw in uwrds(snt)] for snt, ln in zip(embeded_sents,
-                                                                                   self.sentence_lang) if uwrds(snt)]
-
-        unknown_words_flatned = [(uw,l) for unwnst in unknown_words_nested for uw,l in unwnst ]
-
-        import pdb; pdb.set_trace()
-
-        # todo: fix this
-        return [ persist(self._db_backend,
-                         insert_qry(', '. join(["('%s','%s')"%row])) )for row in unknown_words_flatned]
-
-
-
-# helping stuff
-def persist(backend, insert_qry):
-    rtrn = True
-    #TODO: make table name configurable
-    try:
-        backend(insert_qry)
-        debug('Excecuted query: %s'%insert_qry)
-    except UniqueViolationError:
-        rtrn = False
-    except Exception:
-        warn('Cannot excecuted query: %s'%insert_qry)
-        rtrn = False
-
-    return rtrn
-
-    

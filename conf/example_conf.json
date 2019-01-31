@@ -34,7 +34,11 @@
 	 "wrapper_persist_sentences": true,
 	 "wrapper_persist_unknown_words": true,
 	 "wrapper_multithread": false,
-	 "wrapper_workers": 5
+	 "wrapper_workers": 5,
+	 "wrapper_table_names": {
+	     "persist_sentences": "tweets_embeding_keys",
+	     "persist_unknown_words": "unknownwords"
+	 }
      }
  }
 }
