@@ -78,8 +78,7 @@ class BasePostgressService(AbsPostgressService):
         credentials_path = os.path.join('/tmp/%s_postgress_crd.json'%prefix)
         pwd = json.load(open(credentials_path,'r')),
 
-        async def run_query(qry):
-            # keep it nested for security
+        async def run_query(qry): # keep it nested for security
             conn = await asyncpg.connect(user = self.user,
                                          password = pwd,
                                          database = self.database,
@@ -102,8 +101,6 @@ class BasePostgressService(AbsPostgressService):
         query_result = asyncio.get_event_loop().run_until_complete(run_query(qry))
 
         return list(map(self.records_formater, query_result))
-
-
 
 
 class PostgresReaderService(BasePostgressService):

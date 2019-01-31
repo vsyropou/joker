@@ -96,13 +96,15 @@ class BasePipelineComponent(AbsPipelineComponent):
 
             setattr(self, "underlying_engine", engine)
 
-    def _check_derived_class_argument(self, argument, default_value):
+    def _check_derived_class_argument(self, arguments, default_values):
 
-        if not hasattr(self, argument):
-            class_name = self.__class__.__name__
-            warn('%s: no value was found for argument "%s" assuming default "%s"'%(class_name,
-                                                                                   argument, default_value))
-            setattr(self, argument, default_value)
+        for arg, val in zip(arguments, default_values):
+            if not hasattr(self, arg):
+                class_name = self.__class__.__name__
+                debug('%s: argument "%s" has no value, assuming default "%s"'%(class_name,
+                                                                               arguments,
+                                                                               default_values))
+                setattr(self, arg, val)
             
     def fit(self, sents):
         warn('Default "%s.fit" method does not do anything'%self.__class__.__name__)

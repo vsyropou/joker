@@ -39,12 +39,17 @@ class UrlRemoverSvc(BaseRegExpService):
         super().__init__(*args, **kwargs)
 
         # check attributes
-        #TODO: remove this check to the base class
-        for arg, val in zip(["persist_urls", "sentence_ids"], [False, None]):
-            self._check_derived_class_argument(arg, val)
-        #TODO: check that you have the ids and language in case the corresponding flags are true
+        self._check_derived_class_argument(["persist_urls", "sentence_ids"],
+                                           [False, None])
 
+        # check that urls can be persisted
         if self.persist_urls:
+            try:
+                assert self.sentence_ids
+            except AssertionError:
+                error('"sentence_ids" argument is required when "persist_urls" is True.')
+                raise
+
             self._db = instansiate_engine('services.postgres', 'PostgresWriterService').query
 
     def transform(self, sents):
@@ -86,9 +91,8 @@ class StopWordsRemoverSvc(BasePipelineComponent):
         super().__init__(*args, **kwargs)
 
         # check attributes
-        for arg, val in zip(["language", "add_stopwords"],
-                            ["english", None]):
-            self._check_derived_class_argument(arg, val)
+        self._check_derived_class_argument(["language", "add_stopwords"],
+                                           ["english", None])            
 
         # update stopwords
         self._stop_words =  stopwords.words(self.language)
@@ -102,7 +106,7 @@ class StopWordsRemoverSvc(BasePipelineComponent):
 
 
 class EmojiReplacerSvc(BasePipelineComponent):
-    #TODO: Too slow maybe multithread??
+    # TODO: Too slow maybe multithread??
     wraped_class_def = ['emoji', 'demojize']
     
     def __init__(self, *args, **kwargs):
@@ -147,12 +151,20 @@ class WordEmbedingsPgSvc(BasePipelineComponent):
         super().__init__(*args, **kwargs)
 
         # check attributes
-        #TODO: remove this check to the base class
-        for arg, val in zip(["language_model", "persist_sentences", "persist_unknown_words",
-                             "sentence_ids", "sentence_lang", 'table_names', 'multithread', 'workers'],
-                            ["embedingsglove25", False, False, None, None, {}, False, 5]):
-            self._check_derived_class_argument(arg, val)
-        #TODO: check that you have the ids and language in case the corresponding flags are true
+        self._check_derived_class_argument(["language_model", "persist_sentences", "persist_unknown_words",
+                                            "sentence_ids", "sentence_lang", 'table_names', 'multithread', 'workers'],
+                                           ["embedingsglove25", False, False, None, None, {}, False, 5])
+
+        # guarante persistance of sentences and unknown words
+        for arg_name, flag_name, cond in zip(['sentence_ids',                'sentence_lang'],
+                                             ['persist_sentences',           'persist_unknown_words'],
+                                             [self.sentence_ids is not None, self.sentence_lang is not None]):
+            if getattr(self,flag_name):
+                try:
+                    assert cond
+                except AssertionError:
+                    error('"%s" argument is required when "%s" flag is True.'%(arg_name,flag_name))
+                    raise
 
         # embedings engine
         if self.persist_sentences or self.persist_unknown_words:
@@ -175,9 +187,7 @@ class WordEmbedingsPgSvc(BasePipelineComponent):
 
         # multi or single thread ?
         if self.multithread:
-            #TODO: make a non async postgres; or return futures from asyncpg to main thread where there is an event loop  
             pool = ThreadPool(processes=self.workers)
-            #TODO: Does it really run asscynchronouysly if you hit get immediately?? Investigate
             thread = lambda op, nam: pool.apply_async(op, arguments[nam]).get()
 
             results =  { nam : thread(opr,nam) for nam, opr in operators.items()}
