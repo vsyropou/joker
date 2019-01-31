@@ -10,7 +10,7 @@ from multiprocessing.pool import ThreadPool
 from services.pipelines import BasePipelineComponent
 from utilities.general import info, warn, error, debug
 from utilities.import_tools import instansiate_engine
-from utilities.persist import persist_sentences, persist_unknown_words, persist
+from utilities.persist import persist_sentences, persist_unknown_words, persist_urls
 from utilities.postgres_queries import insert_qry, get_embeding_qry, get_embeding_batch_qry
 
 
@@ -34,6 +34,40 @@ class UrlRemoverSvc(BaseRegExpService):
 
     _regular_expresion = re.compile("(?P<url>https?://[^\s]+)")
 
+    def __init__(self, *args, **kwargs):
+
+        super().__init__(*args, **kwargs)
+
+        # check attributes
+        #TODO: remove this check to the base class
+        for arg, val in zip(["persist_urls", "sentence_ids"], [False, None]):
+            self._check_derived_class_argument(arg, val)
+        #TODO: check that you have the ids and language in case the corresponding flags are true
+
+        if self.persist_urls:
+            self._db = instansiate_engine('services.postgres', 'PostgresWriterService').query
+
+    def transform(self, sents):
+
+        # collect tasks
+        operators = {'url_filter': super(UrlRemoverSvc, self).transform}
+        arguments = {'url_filter': [sents]}
+
+        # append optional tasks
+        if self.persist_urls:
+            urls_list = [re.findall(self._regular_expresion, snt) for snt in sents]
+            operators['persist_urls'] = persist_urls
+            arguments['persist_urls'] = [self._db, urls_list, self.sentence_ids, self.table_name]
+
+        # excecute multirehad / singlthread
+        if self.multithread:
+            pool = ThreadPool(processes=self.workers)
+            thread = lambda op, nam: pool.apply_async(op, arguments[nam]).get()            
+            results =  { nam : thread(opr,nam) for nam, opr in operators.items()}
+        else:
+            results = { nam : opr(*arguments[nam]) for nam, opr in operators.items()}
+
+        return results['url_filter']
 
 class HashtagRemoverSvc(BaseRegExpService):
 
@@ -113,6 +147,7 @@ class WordEmbedingsPgSvc(BasePipelineComponent):
         super().__init__(*args, **kwargs)
 
         # check attributes
+        #TODO: remove this check to the base class
         for arg, val in zip(["language_model", "persist_sentences", "persist_unknown_words",
                              "sentence_ids", "sentence_lang", 'table_names', 'multithread', 'workers'],
                             ["embedingsglove25", False, False, None, None, {}, False, 5]):

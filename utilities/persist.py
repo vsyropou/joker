@@ -2,14 +2,29 @@ from asyncpg.exceptions import UniqueViolationError
 from utilities.postgres_queries import insert_qry
 from utilities.general import info, warn, error, debug
 
+def persist(backend, insert_qry):
+    try:
+        backend(insert_qry)
+        debug('Excecuted query: %s'%insert_qry)
+        rtrn = True
+    except UniqueViolationError as err:
+        warn('Caught "UniqueViolationError" when executing: %s'%insert_qry)
+        warn(err)
+        rtrn = False
+    except Exception as err:
+        warn('Cannot excecuted query: %s'%insert_qry)
+        warn(err)
+        rtrn = False
+    return rtrn
+
 
 def persist_sentences(*args):
 
     try: # parse args
-        db   = args[0] # ('db_backend')
-        snts = args[1] # ('embeded_sentences')
-        ids  = args[2] # ('sentence_ids')
-        name = args[3] # ('table_name')
+        db   = args[0] # db_backend
+        snts = args[1] # embeded_sentences
+        ids  = args[2] # sentence_ids
+        name = args[3] # table_name
     except KeyError as err:
         error('Not enough arguments to persist sentences')
         raise RuntimeError(err)
@@ -28,10 +43,10 @@ def persist_sentences(*args):
 
 def persist_unknown_words(*args):
     try: # parse args
-        db   = args[0] # ('db_backend')
-        snts = args[1] # ('embeded_sentences')
-        lang = args[2] # ('sentence_lang')
-        name = args[3] # ('table_name')
+        db   = args[0] # db_backend
+        snts = args[1] # embeded_sentences
+        lang = args[2] # sentence_lang
+        name = args[3] # table_name
     except KeyError as err:
         error('Not enough arguments to persist unknown words')
         raise RuntimeError(err)
@@ -47,17 +62,23 @@ def persist_unknown_words(*args):
 
     return [ persist(db, insert_qry(name, row)) for row in insert_data]
 
+def persist_urls(*args):
 
-def persist(backend, insert_qry):
-    try:
-        backend(insert_qry)
-        debug('Excecuted query: %s'%insert_qry)
-        rtrn = True
-    except UniqueViolationError:
-        debug('Caught "UniqueViolationError" when executing: %s'%insert_qry)
-        rtrn = False
-    except Exception as err:
-        warn('Cannot excecuted query: %s'%insert_qry)
-        warn(err)
-        rtrn = False
-    return rtrn
+    try: # parse args
+        db    = args[0] # db_backend
+        urlsl = args[1] # nested list of urls
+        ids   = args[2] # sentence_ids
+        name  = args[3] # table_name
+    except KeyError as err:
+        error('Not enough arguments to persist urls')
+        raise RuntimeError(err)
+         
+    urls_nested  = [ [(id,url) for url in urls] for id, urls in zip(ids, urlsl) ]
+
+    urls_flatned = [ (id,url) for nurl in urls_nested for id, url in nurl]
+
+    insert_data =  [row for row in [', '. join(["('%s','%s')"%tpl]) for tpl in urls_flatned]]
+    
+    return [ persist(db, insert_qry(name, row)) for row in insert_data]
+        
+

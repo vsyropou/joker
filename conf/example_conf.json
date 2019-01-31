@@ -15,7 +15,10 @@
  "memory": false,
  "remove_urls_conf": {
      "kwargs": {
- 	 "wrapper_persist_removed_urls": true
+ 	 "wrapper_persist_urls": true,
+	 "wrapper_table_name": "urls",
+	 "wrapper_multithread": false,
+	 "wrapper_workers": 2
      }
  },
  "replace_emojis_conf": {
