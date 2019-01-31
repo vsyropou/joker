@@ -20,7 +20,7 @@ class BaseRegExpService(BasePipelineComponent):
         info('Progressing %s/%s steps (%s)'%(self.order, self.num_pipeline_steps, self.__class__.__name__))
         return [re.sub(self._regular_expresion, '', snt) for snt in sents]
 
-    
+
 class LineBreaksRemoverSvc(BaseRegExpService):
 
     _regular_expresion = re.compile("/(\r\n)+|\r+|\n+|\t+/i")
@@ -130,34 +130,26 @@ class WordEmbedingsPgSvc(BasePipelineComponent):
 
     def transform(self, sents):
         info('Progressing %s/%s steps (%s)'%(self.order, self.num_pipeline_steps, self.__class__.__name__))
- 
+
+        # basic sentemnce filtering
         sentence_embeding = lambda snt: [self.word_to_embeding(w) for w in snt]
         embeded_sentences = [sentence_embeding(snt) for snt in sents]
 
-        #TODO: remove some stuff from here, like colelcting tasks
-        unkown_words_filter = lambda embd_snts: [[w for w in snt if str!=type(w)==int] for snt in embd_snts]
-
-        table_names = lambda key: '%s_%s'%(self.table_names[key],self.language_model)
-        base_args = [self._db_backend, embeded_sentences]
-        arguments = {'unknown_words_filter': [embeded_sentences],
-                     'persist_sentences': base_args + [self.sentence_ids, table_names('persist_sentences')],
-                     'persist_unknown_words': base_args + [self.sentence_lang, table_names('persist_unknown_words')]
-                     }
-
-        # collect tasks
-        operators = {}
-        for name, func, flag in zip(['unknown_words_filter','persist_sentences',     'persist_unknown_words'],
-                                    [unkown_words_filter,   persist_sentences, persist_unknown_words],
-                                    [True,                  self.persist_sentences,  self.persist_unknown_words]):
-
-            if flag:
-                operators[name] = func
+        # colect tasks
+        operators, arguments = self._collect_tasks(embeded_sentences)
 
         # multi or single thread ?
         if self.multithread:
-            results = self._transform_multithread(operators, arguments)
+            #TODO: make a non async postgres; or return futures from asyncpg to main thread where there is an event loop  
+            pool = ThreadPool(processes=self.workers)
+            #TODO: Does it really run asscynchronouysly if you hit get immediately?? Investigate
+            thread = lambda op, nam: pool.apply_async(op, arguments[nam]).get()
+            
+            results =  { nam : thread(opr,nam) for nam, opr in operators.items()}
+
         else:
-            results = self._transform_singlethread(operators, arguments)
+            results = { nam : opr(*arguments[nam]) for nam, opr in operators.items()}
+
 
         return results['unknown_words_filter']
 
@@ -168,15 +160,24 @@ class WordEmbedingsPgSvc(BasePipelineComponent):
         except Exception:
             return wrd
 
-    def _transform_singlethread(self, operators_dict, args):
+    def _collect_tasks(self, embeded_sentences):
 
-        return { nam : opr(*args[nam]) for nam, opr in operators_dict.items()}
+        unkown_words_filter = lambda embd_snts: [[w for w in snt if str!=type(w)==int] for snt in embd_snts]
 
-    def _transform_multithread(self, operators_dict, args):
-        #TODO: make a non async postgres; or return futures from asyncpg to main thread where there is an event loop  
-        pool = ThreadPool(processes=self.workers)
-        #TODO: Does it really run asscynchronouysly if you hit get immediately?? Investigate
-        thread = lambda op, nam: pool.apply_async(op, args[nam]).get()
-            
-        return { nam : thread(opr,nam) for nam, opr in operators_dict.items()}
+        table_names = lambda key: '%s_%s'%(self.table_names[key],self.language_model)
 
+        base_args = [self._db_backend, embeded_sentences]
+        arguments = {'unknown_words_filter':  [embeded_sentences],
+                     'persist_sentences':     base_args + [self.sentence_ids,  table_names('persist_sentences')],
+                     'persist_unknown_words': base_args + [self.sentence_lang, table_names('persist_unknown_words')]
+                     }
+
+        operators = {}
+        for name, func, flag in zip(['unknown_words_filter','persist_sentences',     'persist_unknown_words'],
+                                    [unkown_words_filter,   persist_sentences,       persist_unknown_words],
+                                    [True,                  self.persist_sentences,  self.persist_unknown_words]):
+
+            if flag:
+                operators[name] = func
+
+        return operators, arguments
