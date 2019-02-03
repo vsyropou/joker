@@ -38,4 +38,17 @@ create_embeding_keys_tweets_table_qry = lambda nam : "CREATE TABLE %s"%(nam) + \
 
 # urls
 create_urls_table_qry = lambda nam : "CREATE TABLE %s"%(nam) + \
-                        " (tweet_id bigint NOT NULL, url text NOT NULL, PRIMARY KEY (tweet_id))"
+                                     " (tweet_id bigint NOT NULL, url text NOT NULL, PRIMARY KEY (tweet_id))"
+
+# create views
+create_raw_dataset_view_qry = lambda name: 'create view %s as'%name +\
+                                           ' with heartbeat as(' +\
+	                                   '  select *,' +\
+	                                   '   dense_rank() over(partition by "name" order by insertion_time asc) as time_idx,' +\
+	                                   '   insertion_time as time_zero,' +\
+	                                   '   lead(insertion_time, 1, null) over(partition by "name" order by insertion_time asc) time_one' +\
+                                           '  from cmcfeeds)' +\
+                                           ' select *,' +\
+                                           '  (select array((select id from tweets as tw where tw.insertion_time between hb.time_zero and hb.time_one))) tweet_ids' +\
+                                           ' from heartbeat as hb' +\
+                                           ' where time_one is not null'
