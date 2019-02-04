@@ -33,7 +33,7 @@ class Progress():
         return self
         
     def __call__(self, jump=1):
-            
+
         annimation_idx = self._counter % len(self._annimations_)
         annimation_icn = self._annimations_[annimation_idx]
         
@@ -58,7 +58,7 @@ class Progress():
 def read_json(path):
     with open(opts.conf_file,'r') as fp:
         return json.load(fp)
-        
+
 # fun stuff
 class ChunkNorisJoke():
     
