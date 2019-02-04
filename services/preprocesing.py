@@ -40,13 +40,14 @@ class UrlRemoverSvc(BaseRegExpService):
 
         # check attributes
         self._check_derived_class_argument(["persist_urls", "sentence_ids", "table_name"],
-                                           [False, None, "urls"])
+                                           [False, [], "urls"])
 
         # check that urls can be persisted
         if self.persist_urls:
             try: # data availability
                 assert self.sentence_ids
-            except AssertionError:
+                assert len(self.sentence_ids) == self.num_operants
+            except AssertionError as err:
                 error('"sentence_ids" argument is required when "persist_urls" is True.')
                 raise
 

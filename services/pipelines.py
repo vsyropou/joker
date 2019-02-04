@@ -4,7 +4,7 @@ import abc
 from pprint import pprint
 from sklearn.pipeline import Pipeline
 
-from utilities.general import info, warn, error, debug
+from utilities.general import info, warn, error, debug, MessageService
 from utilities.import_tools import import_module_proxy, import_class_proxy, instansiate_engine
 
 __all__ = ['BasePipelineComponent', 'PreProcessingPipelineWrapper']
@@ -35,9 +35,9 @@ class PreProcessingPipelineWrapper(Pipeline):
             assert len(steps_cnf) == len(self.steps), \
             'Pipeline components where not appended properly.'
         except AssertionError:
-            info('The requested pipeline configuration:')
+            error('The requested pipeline configuration:')
             pprint(steps_cnf)
-            info('Was parsed into the pipeline backed as follows:')
+            error('Was parsed into the pipeline backed as follows:')
             pprint(self.steps)
             raise
 
@@ -61,6 +61,18 @@ class PreProcessingPipelineWrapper(Pipeline):
             self.pipeline_steps += [(step_name, class_instance)]
         return self.pipeline_steps
 
+
+    def reconfigure(self, cnf, **kwargs):
+        info('Reconfiguring pipeline')
+
+        print_lvl = MessageService._print_level
+        MessageService.set_print_level(-1)
+        try:
+            return self.__init__(cnf, **kwargs)
+        except Exception as err:
+            error('Failed to reconfigure pipline')
+            raise
+        MessageService.set_print_level(print_lvl)
 
 class AbsPipelineComponent(abc.ABC):
 
@@ -103,10 +115,14 @@ class BasePipelineComponent(AbsPipelineComponent):
         for arg, val in zip(arguments, default_values):
             if not hasattr(self, arg):
                 class_name = self.__class__.__name__
-                info('%s: argument "%s" has no value, assuming default "%s"'%(class_name,arg))
-                pprint(val)
-                setattr(self, arg, val)
-            
+                try:
+                    warn('%s: argument "%s" has no value, assuming default'%(class_name,arg))
+                    warn(val)
+                    setattr(self, arg, val)
+                except Exception as err:
+                    error('Cannot set default valeus for argument %s'%arg)
+                    raise
+
     def fit(self, sents):
         warn('Default "%s.fit" method does not do anything'%self.__class__.__name__)
         return sents

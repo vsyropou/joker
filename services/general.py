@@ -26,6 +26,9 @@ class MessageService():
             if extra_filters:
                 MessageService._print_filters += [extra_filters]
             
+    @staticmethod
+    def set_print_level(lvl):
+        MessageService._print_level = lvl
 
     @classmethod
     def _my_print(cls,msg,lvl,call_frame):

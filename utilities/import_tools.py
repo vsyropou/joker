@@ -1,5 +1,4 @@
 import importlib
-from pprint import pprint
 
 from utilities.general import info, error, debug
 from utilities.postgres_queries import list_of_tables_qry
@@ -47,12 +46,12 @@ def instansiate_engine(*arguments):
     try:
         class_instance = class_proxy(*args, **kwargs)
     except Exception:
-        print('Cannot instansiate class "%s"'%(class_proxy.__name__))
+        error('Cannot instansiate class "%s"'%(class_proxy.__name__))
         raise
 
     info('Instansiated class "%s"'%class_proxy.__name__)
-    if args:   pprint(' args %s'%args)
-    if kwargs: pprint(' kwargs %s'%kwargs)
+    if args:   debug(' args %s'%args)
+    if kwargs: debug(' kwargs %s'%kwargs)
 
     return class_instance
 

@@ -1,5 +1,6 @@
 
 import sys
+import json
 import requests
 
 from services.general import MessageService
@@ -54,6 +55,10 @@ class Progress():
         print()
 
 
+def read_json(path):
+    with open(opts.conf_file,'r') as fp:
+        return json.load(fp)
+        
 # fun stuff
 class ChunkNorisJoke():
     

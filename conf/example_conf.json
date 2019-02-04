@@ -1,47 +1,47 @@
-
-{"pipeline_version": "v0.1",
- "steps": [
-     ["services.preprocesing", "LineBreaksRemoverSvc",  "remove_lbreaks"],
-     ["services.preprocesing", "HandlesRemoverSvc",     "remove_handles"],
-     ["services.preprocesing", "UrlRemoverSvc",         "remove_urls"],
-     ["services.preprocesing", "HashtagRemoverSvc",     "remove_hashtags"],
-     ["services.preprocesing", "PunktuationRemoverSvc", "remove_punktuations"],
-     ["services.preprocesing", "EmojiReplacerSvc",      "replace_emojis"],
-     ["services.preprocesing", "TweeterTokenizerSvc",   "tokenize"],
-     ["services.preprocesing", "StopWordsRemoverSvc",   "remove_stopwords"],
-     ["services.preprocesing", "NumberReplacerSvc",     "replace_number"],
-     ["services.preprocesing", "WordEmbedingsPgSvc",    "map_word_to_embeding_indices"]
- ],
- "memory": false,
- "remove_urls_conf": {
-     "kwargs": {
- 	 "wrapper_persist_urls": false,
-	 "wrapper_table_name": "urls",
-	 "wrapper_multithread": false,
-	 "wrapper_workers": 2
-     }
- },
- "replace_emojis_conf": {
-     "kwargs": {
-	 "wrapper_delimeters": [" <","> "]
-     }
- },
- "remove_stopwords_conf": {
-     "kwargs": {
-	 "wrapper_language": "english",
-	 "wrapper_add_stopwords": ["RT", "HT", "TIL", "OH"]}
- },
- "map_word_to_embeding_indices_conf":{
-     "kwargs":{
-	 "wrapper_persist_sentences": false,
-	 "wrapper_persist_unknown_words": false,
-	 "wrapper_multithread": false,
-	 "wrapper_workers": 5,
-	 "wrapper_table_names": {
-	     "persist_sentences": "tweets_with_embs_idx",
-	     "persist_unknown_words": "unknownwords",
-	     "language_model": "embedings_glove25"
-	 }
-     }
- }
+{
+    "pipeline_version": "v0.1",
+    "steps": [
+	["services.preprocesing", "LineBreaksRemoverSvc",  "remove_lbreaks"],
+	["services.preprocesing", "HandlesRemoverSvc",     "remove_handles"],
+	["services.preprocesing", "UrlRemoverSvc",         "remove_urls"],
+	["services.preprocesing", "HashtagRemoverSvc",     "remove_hashtags"],
+	["services.preprocesing", "PunktuationRemoverSvc", "remove_punktuations"],
+	["services.preprocesing", "EmojiReplacerSvc",      "replace_emojis"],
+	["services.preprocesing", "TweeterTokenizerSvc",   "tokenize"],
+	["services.preprocesing", "StopWordsRemoverSvc",   "remove_stopwords"],
+	["services.preprocesing", "NumberReplacerSvc",     "replace_number"],
+	["services.preprocesing", "WordEmbedingsPgSvc",    "map_word_to_embeding_indices"]
+    ],
+    "memory": false,
+    "remove_urls_conf": {
+	"kwargs": {
+ 	    "wrapper_persist_urls": false,
+	    "wrapper_table_name": "urls",
+	    "wrapper_multithread": false,
+	    "wrapper_workers": 2
+	}
+    },
+    "replace_emojis_conf": {
+	"kwargs": {
+	    "wrapper_delimeters": [" <","> "]
+	}
+    },
+    "remove_stopwords_conf": {
+	"kwargs": {
+	    "wrapper_language": "english",
+	    "wrapper_add_stopwords": ["RT", "HT", "TIL", "OH"]}
+    },
+    "map_word_to_embeding_indices_conf":{
+	"kwargs":{
+	    "wrapper_persist_sentences": false,
+	    "wrapper_persist_unknown_words": false,
+	    "wrapper_multithread": false,
+	    "wrapper_workers": 5,
+	    "wrapper_table_names": {
+		"persist_sentences": "tweets_with_embs_idx",
+		"persist_unknown_words": "unknownwords",
+		"language_model": "embedings_glove25"
+	    }
+	}
+    }
 }
