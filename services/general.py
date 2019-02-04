@@ -5,7 +5,7 @@ class MessageService():
 
     _instansiated = False
         
-    _print_level = 3
+    _print_level = 1
 
     _levels = {'ERR ':-1, 'INFO':0, 'WARN':1, 'DEBG':2}
 

@@ -207,7 +207,11 @@ class WordEmbedingsPgSvc(BasePipelineComponent):
         info('Progressing %s/%s steps (%s)'%(self.order, self.num_pipeline_steps, self.__class__.__name__))
 
         # basic sentemnce filtering
-        tokenized_sentences = [self.sentence_to_embeding_tokens(snt) for snt in sents]
+        tokenized_sentences = []
+        with Progress(total=self.num_operants) as progress:
+            self.prgogress = prgogress
+            tokenized_sentences = [self.sentence_to_embeding_tokens(snt) for snt in sents]
+            #TODO: optionally  only switch on progress display
 
         # colect tasks
         operators, arguments = self._collect_tasks(tokenized_sentences)
@@ -225,6 +229,7 @@ class WordEmbedingsPgSvc(BasePipelineComponent):
         return results['unknown_words_filter']
 
     def sentence_to_embeding_tokens(self, snt):
+        self.progress()
         return [self.word_to_embeding_token(w) for w in snt]
 
     

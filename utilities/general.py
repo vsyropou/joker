@@ -12,30 +12,26 @@ debug = MessageService.debug
 
 
 class Progress():
-    #TODO:  make this a context manager
+
     _annimations_ = ['-', '\\','|','/']    
 
     def __init__(self, total, name=None):
-        # TODO: should __enter__()
+
         self._name = name
         
         self._total = total
         
         self._counter = 0
 
-    def reset(self, total=None):
-        #TODO: should be exit(), plus print one line
-        self._total = self._total if not total else total
-        self._counter = 0
+    def __enter__(self):
+        msg  = 'Displaying progress'
+        msg += ' of "%s":'%self._name if self._name else ''
+        msg += ' ( Make coffee and be patient :-P ):'
+        info(msg)
 
-
-    def progress(self, jump=1):
-        # TODO: this should be returned by the with statement
-        if self._counter == 0:
-            msg  = 'Displaying progress'
-            msg += ' of "%s":'%self._name if self._name else ''
-            msg += ' ( Make coffee and be patient :-P ):'
-            info(msg)
+        return self
+        
+    def __call__(self, jump=1):
             
         annimation_idx = self._counter % len(self._annimations_)
         annimation_icn = self._annimations_[annimation_idx]
@@ -53,8 +49,9 @@ class Progress():
         sys.stdout.flush()
         
         self._counter += jump
-        if self._counter>=self._total:
-            print()
+
+    def __exit__(self, *args):
+        print()
 
 
 # fun stuff
