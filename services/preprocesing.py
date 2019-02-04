@@ -11,8 +11,8 @@ from services.pipelines import BasePipelineComponent
 from utilities.general import info, warn, error, debug
 from utilities.import_tools import instansiate_engine
 from utilities.persist import persist_sentences, persist_unknown_words, persist_urls
-from utilities.postgres_queries import insert_qry, get_embeding_qry, get_embeding_batch_qry
-
+from utilities.postgres_queries import  get_embeding_qry, list_of_tables_qry
+from utilities.general import Progress
 
 class BaseRegExpService(BasePipelineComponent):
 
@@ -113,7 +113,7 @@ class EmojiReplacerSvc(BasePipelineComponent):
 
         super().__init__(*args, **kwargs)
 
-        self._check_derived_class_argument('delimeters', [" <","> "])
+        self._check_derived_class_argument(['delimeters'], [[" <","> "]])
 
     def transform(self, sents):
         info('Progressing %s/%s steps (%s)'%(self.order, self.num_pipeline_steps, self.__class__.__name__))
@@ -131,7 +131,6 @@ class NumberReplacerSvc(BasePipelineComponent):
         number_to_string = lambda n: self.underlying_engine.number_to_words(n)
 
         condition = lambda snt: [replace_func(w) for w in snt]
-
         return map(condition, sents)
 
 
@@ -147,44 +146,72 @@ class TweeterTokenizerSvc(BasePipelineComponent):
 class WordEmbedingsPgSvc(BasePipelineComponent):
 
     def __init__(self, *args, **kwargs):
-        
+        #TODO: reduce the size of checks ????.....
         super().__init__(*args, **kwargs)
 
         # check attributes
-        self._check_derived_class_argument(["language_model", "persist_sentences", "persist_unknown_words",
+        self._check_derived_class_argument(["persist_sentences", "persist_unknown_words",
                                             "sentence_ids", "sentence_lang", 'table_names', 'multithread', 'workers'],
-                                           ["embedingsglove25", False, False, None, None, {}, False, 5])
+                                           [False, False, None, None, {}, False, 5])
+        
+        # instansiate embedings engine
+        if self.persist_sentences or self.persist_unknown_words:
+            self._db_backend = instansiate_engine('services.postgres', 'PostgresWriterService').query
+        else:
+            self._db_backend = instansiate_engine('services.postgres', 'PostgresReaderService').query
 
+        # guarantedd language model (word embedings)
+        try: # specify language model 
+            self.language_model = self.table_names['language_model']
+        except KeyError as err:
+            error('Specify "wrapper_table_names.language_model" in the pipeline conf file')
+
+        try: # language model in the db
+            assert self.language_model in list(map(lambda e: e[2], self._db_backend(list_of_tables_qry)))
+        except AssertionError as err:
+            error('Cannot locate language model "%s" table in the database'%self.language_model)
+            raise
+
+        # embedigns lookup engine
+        self._embedings_engine = lambda wrd: self._db_backend(get_embeding_qry(wrd, self.language_model))
+
+        
         # guarante persistance of sentences and unknown words
+        #  data availability
         for arg_name, flag_name, cond in zip(['sentence_ids',                'sentence_lang'],
                                              ['persist_sentences',           'persist_unknown_words'],
                                              [self.sentence_ids is not None, self.sentence_lang is not None]):
+            # ids and languages datasets
             if getattr(self,flag_name):
                 try:
                     assert cond
                 except AssertionError:
                     error('"%s" argument is required when "%s" flag is True.'%(arg_name,flag_name))
                     raise
-
-        # embedings engine
-        if self.persist_sentences or self.persist_unknown_words:
-            self._db_backend = instansiate_engine('services.postgres', 'PostgresWriterService').query
-        else:
-            self._db_backend = instansiate_engine('services.postgres', 'PostgresReaderService').query
-
-        self._embedings_engine = lambda wrd: self._db_backend(get_embeding_qry(wrd, self.language_model))
+                
+            # list of tables in the db
+            lot = self._db_backend(list_of_tables_qry)
+            if getattr(self,flag_name):
+                try:
+                    assert self.table_names[flag_name] in [t[2] for t in lot]
+                except Exception as err:
+                    if err.__class__.__name__ == 'KeyError':
+                        msg = 'Specify wrapper_table_names."%s" in the pipeline conf file'%flag_name
+                    else:
+                        msg = 'Cannot locate entity "%s" in the databse'%self.table_names[flag_name]
+                    error(msg)
+                    raise
 
 
     def transform(self, sents):
         info('Progressing %s/%s steps (%s)'%(self.order, self.num_pipeline_steps, self.__class__.__name__))
 
         # basic sentemnce filtering
-        sentence_embeding = lambda snt: [self.word_to_embeding(w) for w in snt]
-        embeded_sentences = [sentence_embeding(snt) for snt in sents]
+        tokenized_sentences = [self.sentence_to_embeding_tokens(snt) for snt in sents]
 
         # colect tasks
-        operators, arguments = self._collect_tasks(embeded_sentences)
-
+        operators, arguments = self._collect_tasks(tokenized_sentences)
+        
         # multi or single thread ?
         if self.multithread:
             pool = ThreadPool(processes=self.workers)
@@ -195,24 +222,28 @@ class WordEmbedingsPgSvc(BasePipelineComponent):
         else:
             results = { nam : opr(*arguments[nam]) for nam, opr in operators.items()}
 
-
         return results['unknown_words_filter']
 
-    def word_to_embeding(self, wrd):
+    def sentence_to_embeding_tokens(self, snt):
+        return [self.word_to_embeding_token(w) for w in snt]
 
-        try: # lookup embeding 
+    
+    def word_to_embeding_token(self, wrd):
+        #TODO: put progress here
+        
+        try: # lookup embeding
             return self._embedings_engine(wrd)[0][0]
         except Exception:
             return wrd
 
-    def _collect_tasks(self, embeded_sentences):
+    def _collect_tasks(self, tokenized_sentences):
 
         unkown_words_filter = lambda embd_snts: [[w for w in snt if str!=type(w)==int] for snt in embd_snts]
 
-        table_names = lambda key: '%s_%s'%(self.table_names[key],self.language_model)
+        table_names = lambda key: '%s_%s'%(self.table_names[key], self.language_model)
 
-        base_args = [self._db_backend, embeded_sentences]
-        arguments = {'unknown_words_filter':  [embeded_sentences],
+        base_args = [self._db_backend, tokenized_sentences]
+        arguments = {'unknown_words_filter':  [tokenized_sentences],
                      'persist_sentences':     base_args + [self.sentence_ids,  table_names('persist_sentences')],
                      'persist_unknown_words': base_args + [self.sentence_lang, table_names('persist_unknown_words')]
                      }

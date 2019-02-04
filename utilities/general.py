@@ -27,6 +27,11 @@ class Progress():
 
         Progress._total = self._total
         Progress._name  = self._name
+
+    def reset(self, total):
+        self._total = total
+        self._counter = Progress._counter
+
         
     @classmethod
     def progress(cls, count):

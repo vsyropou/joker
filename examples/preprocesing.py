@@ -16,7 +16,7 @@ from services.postgres import PostgresReaderService
 from utilities.postgres_queries import all_tweets_qry
 
 
-limit = 5 # for developing
+limit = 50 # for developing
 
 # get some data
 data_db_svc  = PostgresReaderService()
@@ -38,7 +38,7 @@ conf['map_word_to_embeding_indices_conf']['kwargs']['wrapper_sentence_lang'] = t
 # initialize services
 msg_svc = MessageService(print_level = 2 if opts.verbose else 1)
 
-pipeline = PreProcessingPipelineWrapper(conf)
+pipeline = PreProcessingPipelineWrapper(conf, num_operants=len(tweets))
 
 
 out = list(pipeline.transform(list(tweets)))

@@ -15,7 +15,7 @@
  "memory": false,
  "remove_urls_conf": {
      "kwargs": {
- 	 "wrapper_persist_urls": true,
+ 	 "wrapper_persist_urls": false,
 	 "wrapper_table_name": "urls",
 	 "wrapper_multithread": false,
 	 "wrapper_workers": 2
@@ -33,14 +33,14 @@
  },
  "map_word_to_embeding_indices_conf":{
      "kwargs":{
-	 "wrapper_language_model": "embedingsglove25",
-	 "wrapper_persist_sentences": true,
-	 "wrapper_persist_unknown_words": true,
+	 "wrapper_persist_sentences": false,
+	 "wrapper_persist_unknown_words": false,
 	 "wrapper_multithread": false,
 	 "wrapper_workers": 5,
 	 "wrapper_table_names": {
-	     "persist_sentences": "tweets_embeding_keys",
-	     "persist_unknown_words": "unknownwords"
+	     "persist_sentences": "tweets_with_embs_idx",
+	     "persist_unknown_words": "unknownwords",
+	     "language_model": "embedings_glove25"
 	 }
      }
  }

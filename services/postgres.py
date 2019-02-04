@@ -57,7 +57,7 @@ class BasePostgressService(AbsPostgressService):
             pwd = input(msg)
             print()
             # write
-            with open(self._credentials_path, 'w+') as fp:
+            with open(credentials_path, 'w+') as fp:
                 json.dump(pwd,fp)
 
         # test connection

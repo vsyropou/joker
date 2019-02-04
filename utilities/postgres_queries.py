@@ -1,4 +1,7 @@
 
+# get list of tables
+list_of_tables_qry = "SELECT * FROM information_schema.tables;"
+
 # get data
 all_tweets_qry = lambda cols, tabl='tweets': "SELECT %s "%(','.join(cols)) + \
                                              "FROM %s"%tabl

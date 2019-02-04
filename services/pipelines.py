@@ -11,7 +11,7 @@ __all__ = ['BasePipelineComponent', 'PreProcessingPipelineWrapper']
 
 class PreProcessingPipelineWrapper(Pipeline):
 
-    def __init__(self, conf):
+    def __init__(self, conf, **kwargs):
 
         # parse configuration
         try:
@@ -22,7 +22,8 @@ class PreProcessingPipelineWrapper(Pipeline):
         
         memory    = conf.pop('memory', False)
         steps_cnf = conf.pop('steps', None) 
-
+        self._num_operants = kwargs.pop('num_operants', -1)
+        
         # create pipline steps
         assert len(steps_cnf) >= 1, 'Pipeline without any components.'
         self.pipeline_steps = self._create_steps(steps_cnf, conf)
@@ -52,6 +53,7 @@ class PreProcessingPipelineWrapper(Pipeline):
                 warn('No backend configuration found for %s. Using defaults.'%class_name)
                 args, kwargs = [], {}
 
+            kwargs['wrapper_num_operants'] = self._num_operants
             kwargs['wrapper_order'] = order + 1
             kwargs['wrapper_num_pipeline_steps'] = len(self.pipeline_steps) + 1
             class_instance = instansiate_engine(module_name, class_name, args, kwargs)
@@ -101,9 +103,8 @@ class BasePipelineComponent(AbsPipelineComponent):
         for arg, val in zip(arguments, default_values):
             if not hasattr(self, arg):
                 class_name = self.__class__.__name__
-                debug('%s: argument "%s" has no value, assuming default "%s"'%(class_name,
-                                                                               arguments,
-                                                                               default_values))
+                info('%s: argument "%s" has no value, assuming default "%s"'%(class_name,arg))
+                pprint(val)
                 setattr(self, arg, val)
             
     def fit(self, sents):
