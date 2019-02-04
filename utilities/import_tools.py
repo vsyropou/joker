@@ -1,5 +1,8 @@
 import importlib
+from pprint import pprint
+
 from utilities.general import info, error, debug
+from utilities.postgres_queries import list_of_tables_qry
 
 
 def import_module_proxy(module_name):
@@ -48,8 +51,29 @@ def instansiate_engine(*arguments):
         raise
 
     info('Instansiated class "%s"'%class_proxy.__name__)
-    if args:   debug(' args %s'%args)
-    if kwargs: debug(' kwargs %s'%kwargs)
+    if args:   pprint(' args %s'%args)
+    if kwargs: pprint(' kwargs %s'%kwargs)
 
     return class_instance
+
+
+def has_valid_db_backend(class_instance):
+    try:
+        assert hasattr(class_instance, 'db') 
+    except KeyError as err:
+        exmpl = "conf['map_word_to_embeding_indices_conf']['kwargs']['wrapper_db']=<db-backend-isntance>"
+        error('Specify a db backend isntance in your main file, e.g.: %s'%exmpl)
+        raise
+    try:
+        assert hasattr(class_instance.db, 'query')
+    except AssertionError as err:
+        error('Make sure db instance "%s" has a "query" method'%self.db)
+        raise
+
+def has_table(backend, table_name):
+    try:
+        assert table_name in list(map(lambda e: e[2], backend.query(list_of_tables_qry)))
+    except AssertionError as err:
+        error('Cannot locate table "%s" in the database'%table_name)
+        raise
 

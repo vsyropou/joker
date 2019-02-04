@@ -9,10 +9,10 @@ from multiprocessing.pool import ThreadPool
 
 from services.pipelines import BasePipelineComponent
 from utilities.general import info, warn, error, debug
-from utilities.import_tools import instansiate_engine
+from utilities.import_tools import instansiate_engine, has_valid_db_backend, has_table
 from utilities.persist import persist_sentences, persist_unknown_words, persist_urls
 from utilities.postgres_queries import  get_embeding_qry, list_of_tables_qry
-from utilities.general import Progress
+
 
 class BaseRegExpService(BasePipelineComponent):
 
@@ -39,19 +39,20 @@ class UrlRemoverSvc(BaseRegExpService):
         super().__init__(*args, **kwargs)
 
         # check attributes
-        self._check_derived_class_argument(["persist_urls", "sentence_ids"],
-                                           [False, None])
+        self._check_derived_class_argument(["persist_urls", "sentence_ids", "table_name"],
+                                           [False, None, "urls"])
 
         # check that urls can be persisted
         if self.persist_urls:
-            try:
+            try: # data availability
                 assert self.sentence_ids
             except AssertionError:
                 error('"sentence_ids" argument is required when "persist_urls" is True.')
                 raise
 
-            self._db = instansiate_engine('services.postgres', 'PostgresWriterService').query
-
+            has_valid_db_backend(self)
+            has_table(self.db, self.table_name)
+                
     def transform(self, sents):
 
         # collect tasks
@@ -62,7 +63,7 @@ class UrlRemoverSvc(BaseRegExpService):
         if self.persist_urls:
             urls_list = [re.findall(self._regular_expresion, snt) for snt in sents]
             operators['persist_urls'] = persist_urls
-            arguments['persist_urls'] = [self._db, urls_list, self.sentence_ids, self.table_name]
+            arguments['persist_urls'] = [self.db, urls_list, self.sentence_ids, self.table_name]
 
         # excecute multirehad / singlthread
         if self.multithread:
@@ -153,27 +154,17 @@ class WordEmbedingsPgSvc(BasePipelineComponent):
         self._check_derived_class_argument(["persist_sentences", "persist_unknown_words",
                                             "sentence_ids", "sentence_lang", 'table_names', 'multithread', 'workers'],
                                            [False, False, None, None, {}, False, 5])
-        
-        # instansiate embedings engine
-        if self.persist_sentences or self.persist_unknown_words:
-            self._db_backend = instansiate_engine('services.postgres', 'PostgresWriterService').query
-        else:
-            self._db_backend = instansiate_engine('services.postgres', 'PostgresReaderService').query
 
+        # guarantee db engine
+        has_valid_db_backend(self)
+        
         # guarantedd language model (word embedings)
-        try: # specify language model 
+        try:
             self.language_model = self.table_names['language_model']
         except KeyError as err:
             error('Specify "wrapper_table_names.language_model" in the pipeline conf file')
 
-        try: # language model in the db
-            assert self.language_model in list(map(lambda e: e[2], self._db_backend(list_of_tables_qry)))
-        except AssertionError as err:
-            error('Cannot locate language model "%s" table in the database'%self.language_model)
-            raise
-
-        # embedigns lookup engine
-        self._embedings_engine = lambda wrd: self._db_backend(get_embeding_qry(wrd, self.language_model))
+        has_table(self.db, self.language_model)
 
         
         # guarante persistance of sentences and unknown words
@@ -181,37 +172,29 @@ class WordEmbedingsPgSvc(BasePipelineComponent):
         for arg_name, flag_name, cond in zip(['sentence_ids',                'sentence_lang'],
                                              ['persist_sentences',           'persist_unknown_words'],
                                              [self.sentence_ids is not None, self.sentence_lang is not None]):
-            # ids and languages datasets
+
             if getattr(self,flag_name):
-                try:
+                try: # ids and languages datasets
                     assert cond
                 except AssertionError:
                     error('"%s" argument is required when "%s" flag is True.'%(arg_name,flag_name))
                     raise
-                
-            # list of tables in the db
-            lot = self._db_backend(list_of_tables_qry)
-            if getattr(self,flag_name):
-                try:
-                    assert self.table_names[flag_name] in [t[2] for t in lot]
-                except Exception as err:
-                    if err.__class__.__name__ == 'KeyError':
-                        msg = 'Specify wrapper_table_names."%s" in the pipeline conf file'%flag_name
-                    else:
-                        msg = 'Cannot locate entity "%s" in the databse'%self.table_names[flag_name]
+
+                try:  # list of tables in the db
+                    assert flag_name in self.table_names.keys()
+                except KeyError as err:
+                    msg = 'Specify wrapper_table_names."%s" in the pipeline conf file'%flag_name
                     error(msg)
                     raise
+
+                has_table(self.db, table_names[flag_name])
 
 
     def transform(self, sents):
         info('Progressing %s/%s steps (%s)'%(self.order, self.num_pipeline_steps, self.__class__.__name__))
 
         # basic sentemnce filtering
-        tokenized_sentences = []
-        with Progress(total=self.num_operants) as progress:
-            self.prgogress = prgogress
-            tokenized_sentences = [self.sentence_to_embeding_tokens(snt) for snt in sents]
-            #TODO: optionally  only switch on progress display
+        tokenized_sentences = [self.sentence_to_embeding_tokens(snt) for snt in sents]
 
         # colect tasks
         operators, arguments = self._collect_tasks(tokenized_sentences)
@@ -228,16 +211,17 @@ class WordEmbedingsPgSvc(BasePipelineComponent):
 
         return results['unknown_words_filter']
 
+
     def sentence_to_embeding_tokens(self, snt):
-        self.progress()
         return [self.word_to_embeding_token(w) for w in snt]
 
     
     def word_to_embeding_token(self, wrd):
-        #TODO: put progress here
-        
-        try: # lookup embeding
-            return self._embedings_engine(wrd)[0][0]
+        try:
+            return self.db.query(get_embeding_qry(wrd, self.language_model))[0][0]
+        except NameError:
+            error('Cannot locate "get_embeding_qry" from module utilities.postgres_queries')
+            raise
         except Exception:
             return wrd
 
@@ -247,7 +231,7 @@ class WordEmbedingsPgSvc(BasePipelineComponent):
 
         table_names = lambda key: '%s_%s'%(self.table_names[key], self.language_model)
 
-        base_args = [self._db_backend, tokenized_sentences]
+        base_args = [self.db.query, tokenized_sentences]
         arguments = {'unknown_words_filter':  [tokenized_sentences],
                      'persist_sentences':     base_args + [self.sentence_ids,  table_names('persist_sentences')],
                      'persist_unknown_words': base_args + [self.sentence_lang, table_names('persist_unknown_words')]
