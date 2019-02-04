@@ -44,3 +44,13 @@ out = list(pipeline.transform(list(tweets)))
 
 
 # pipeline.reconfigure(conf, num_operants=len(tweets) )
+
+
+# total = 100000
+# fnc = lambda :sleep(2)
+
+# with Progress(total, name='douplesere') as pr:
+
+#     for i in range(100000):
+#         #fnc()
+#         pr()

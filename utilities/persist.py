@@ -1,4 +1,3 @@
-from asyncpg.exceptions import UniqueViolationError
 from utilities.postgres_queries import insert_qry
 from utilities.general import info, warn, error, debug
 
@@ -9,6 +8,7 @@ def persist(backend, insert_qry):
         info('Excecuted query: %s'%insert_qry)
         rtrn = True
     except UniqueViolationError as err:
+        #TODO: Fix this exception for psycorg
         warn('Caught "UniqueViolationError" when executing: %s'%insert_qry)
         warn(err)
         rtrn = False

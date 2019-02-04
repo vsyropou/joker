@@ -1,11 +1,11 @@
 import abc
 import os
 import json
-import asyncio
-import asyncpg
-from utilities.general import warn, info, error, debug
 
-from utilities.general import info
+import psycopg2 as psycopg
+
+from utilities.general import warn, info, error, debug
+from utilities.general import read_json
 
 __all__ = ['PostgresReaderService', 'PostgresWriterService']
 
@@ -40,10 +40,8 @@ class BasePostgressService(AbsPostgressService):
         # look for password
         self._check_password()
 
-        # format records
-        self.records_formater = lambda r: [v for v in r.values()]
-
         info('Instantiated db client to: "%s" database @%s.'%(self.database,self.host))
+
 
     def _check_password(self):
 
@@ -61,46 +59,26 @@ class BasePostgressService(AbsPostgressService):
                 json.dump(pwd,fp)
 
         # test connection
-        run = asyncio.get_event_loop().run_until_complete
         try:
-            conn = run(asyncpg.connect(user = self.user,
-                                       password = json.load(open(credentials_path,'r')),
-                                       database = self.database,
-                                       host = self.host))
+            self.conn = psycopg.connect(user = self.user,
+                                        password = read_json(credentials_path),
+                                        database = self.database,
+                                        host = self.host)
+
         except Exception as err:
             error('Error while connecting to "%s@%s" as %s'%(self.database,self.host,self.user))
             error(err)
             raise
 
+    def cursor(self):
+        return  self.conn.cursor()
+
     def query(self, qry):
 
-        prefix = self.__class__.__name__.split('PostgresDatabaseService')[0]
-        credentials_path = os.path.join('/tmp/%s_postgress_crd.json'%prefix)
-        pwd = json.load(open(credentials_path,'r')),
+        cursor = self.cursor()
+        cursor.execute(qry)
 
-        async def run_query(qry): # keep it nested for security
-            conn = await asyncpg.connect(user = self.user,
-                                         password = pwd,
-                                         database = self.database,
-                                         host = self.host)
-
-            records = await conn.fetch(qry)
-
-            await conn.close()
-            
-            return records
-
-        try: # get event loop
-            asyncio.get_event_loop()
-        except RuntimeError as err:
-            warn('Caught eception: %s'%err)
-            asyncio.set_event_loop(asyncio.new_event_loop())
-            info('Creating event loop')
-
-        # run event loop
-        query_result = asyncio.get_event_loop().run_until_complete(run_query(qry))
-
-        return list(map(self.records_formater, query_result))
+        return cursor.fetchall()
 
 
 class PostgresReaderService(BasePostgressService):

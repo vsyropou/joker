@@ -56,7 +56,7 @@ class Progress():
 
 
 def read_json(path):
-    with open(opts.conf_file,'r') as fp:
+    with open(path,'r') as fp:
         return json.load(fp)
 
 # fun stuff
