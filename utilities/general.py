@@ -12,43 +12,38 @@ debug = MessageService.debug
 
 
 class Progress():
-
-    _counter = 0
-
+    #TODO:  make this a context manager
     _annimations_ = ['-', '\\','|','/']    
 
     def __init__(self, total, name=None):
-
+        # TODO: should __enter__()
         self._name = name
         
         self._total = total
         
-        self._counter = Progress._counter
+        self._counter = 0
 
-        Progress._total = self._total
-        Progress._name  = self._name
+    def reset(self, total=None):
+        #TODO: should be exit(), plus print one line
+        self._total = self._total if not total else total
+        self._counter = 0
 
-    def reset(self, total):
-        self._total = total
-        self._counter = Progress._counter
 
-        
-    @classmethod
-    def progress(cls, count):
-
-        if cls._counter == 0:
+    def progress(self, jump=1):
+        # TODO: this should be returned by the with statement
+        if self._counter == 0:
             msg  = 'Displaying progress'
-            msg += ' of "%s":'%cls._name if cls._name else ''
+            msg += ' of "%s":'%self._name if self._name else ''
             msg += ' ( Make coffee and be patient :-P ):'
             info(msg)
             
-        annimation_idx = cls._counter % len(Progress._annimations_)
-        annimation_icn = Progress._annimations_[annimation_idx]
+        annimation_idx = self._counter % len(self._annimations_)
+        annimation_icn = self._annimations_[annimation_idx]
         
         bar_len = 45
-        filled_len = int(round(bar_len * count / float(cls._total)))
+        filled_len = int(round(bar_len * self._counter / float(self._total)))
 
-        percents = round(100.0 * count / float(cls._total), 1)
+        percents = round(100.0 * self._counter / float(self._total), 1)
         bar = '=' * filled_len + '-' * (bar_len - filled_len)
 
         sys.stdout.flush()
@@ -57,7 +52,9 @@ class Progress():
 
         sys.stdout.flush()
         
-        cls._counter += 1
+        self._counter += jump
+        if self._counter>=self._total:
+            print()
 
 
 # fun stuff
