@@ -5,16 +5,17 @@ class DataStreamerSql():
     
     def __init__(self, *args, **kwargs):
 
-        cursor = args[0]
+        bdbcknd = args[0]
         query = args[1]
 
         step = kwargs.pop('step', 1)
         rec_frmt = kwargs.pop('records_format', 'dict')
         
         # TODO: check all args
+        cursor = bdbcknd.cursor()
         cursor.execute(query)
-        
-        self.nrows = cursor.rowcount +1
+
+        self.nrows = cursor.rowcount
         self.batch_size = step
         
         self.column_names = [d.name for d in  cursor.description]
@@ -32,6 +33,9 @@ class DataStreamerSql():
     def __exit__(self, *args):
         info('Processed stream')
 
+    def __call__(self):
+        return self._generator
+    
     def dict_formater(self, recs):
         return [{nam:val for nam, val in zip(self.column_names,rec)} for rec in recs]
 

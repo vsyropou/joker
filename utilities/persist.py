@@ -2,22 +2,11 @@ from utilities.postgres_queries import insert_qry
 from utilities.general import info, warn, error, debug
 
 def persist(backend, insert_qry):
-    
-    try: # insert query
-        backend(insert_qry)
-        debug('Excecuted query: %s'%insert_qry)
-        rtrn = True
-    except UniqueViolationError as err:
-        #TODO: Fix this exception for psycorg
-        warn('Caught "UniqueViolationError" when executing: %s'%insert_qry)
-        warn(err)
-        rtrn = False
-    except Exception as err:
-        warn('Cannot excecuted query: %s'%insert_qry)
-        warn(err)
+    #TODO: THis is not necessery anymore
+    backend.execute_insert(insert_qry)
+    debug('Excecuted query: %s'%insert_qry)
 
-        rtrn = False
-    return rtrn
+    return True
 
 
 def persist_sentences(*args):

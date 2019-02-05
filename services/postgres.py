@@ -40,7 +40,7 @@ class BasePostgressService(AbsPostgressService):
         # look for password
         self._check_password()
 
-        info('Instantiated db client to: "%s" database @%s.'%(self.database,self.host))
+        debug('Instantiated db client to: "%s" database @%s.'%(self.database,self.host))
 
 
     def _check_password(self):
@@ -73,12 +73,33 @@ class BasePostgressService(AbsPostgressService):
     def cursor(self):
         return  self.conn.cursor()
 
-    def query(self, qry):
+    def execute(self, qry):
 
         cursor = self.cursor()
         cursor.execute(qry)
 
         return cursor.fetchall()
+
+    def execute_insert(self, qry):
+
+        cursor = self.cursor()
+        try:
+            cursor.execute(qry)
+            self.conn.commit()
+
+        except Exception as err:
+
+            self.conn.rollback()
+            
+            if err.pgcode == '23505':
+                warn('Primary key constraint violation when executing: %s'%qry)
+                warn('Rolled back query: %s'%qry)
+            else:
+                error('Caught postgress error when: %s'%qry)
+                print(err)
+                raise
+
+        cursor.close()
 
 
 class PostgresReaderService(BasePostgressService):

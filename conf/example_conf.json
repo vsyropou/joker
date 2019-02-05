@@ -14,10 +14,9 @@
     ],
     "memory": false,
     "multithread": true,
-    "num_threads": 5,
     "remove_urls_conf": {
 	"kwargs": {
- 	    "wrapper_persist_urls": false,
+ 	    "wrapper_persist_urls": true,
 	    "wrapper_table_name": "urls"
 	}
     },

@@ -9,21 +9,26 @@ from utilities.import_tools import import_module_proxy, import_class_proxy, inst
 
 __all__ = ['BasePipelineComponent', 'PreProcessingPipelineWrapper']
 
-class ProcessingPipelineWrapper(Pipeline):
+class PipelineWrapper(Pipeline):
 
-    def __init__(self, conf, **kwargs):
+    def __init__(self, conf=None):
+
+        if conf:
+            self.configure(conf)
+
+    def configure(self, conf):
 
         # parse configuration
-        try:
-            setattr(self, 'version', conf.get('pipeline_version'))
-        except Exception:
-            error('Attribute "pipeline_version" is mandatory and was not found in the conf file "%s"'%conf_file)
-            raise
-        
+        for arg in ['pipeline_version', 'pipeline_name' ]:
+            try:
+                setattr(self, arg, conf.get(arg))
+            except Exception:
+                error('"%s" is mandatory, not found in the provided configuration:'%arg)
+                raise
+
         memory    = conf.get('memory', False)
-        steps_cnf = conf.get('steps', None) 
-        self._num_operants = kwargs.get('num_operants', -1)
-        
+        steps_cnf = conf.get('steps', None)
+    
         # create pipline steps
         assert len(steps_cnf) >= 1, 'Pipeline without any components.'
         self.pipeline_steps = self._create_steps(steps_cnf, conf)
@@ -32,14 +37,18 @@ class ProcessingPipelineWrapper(Pipeline):
         super().__init__(steps=self.pipeline_steps, memory=memory)
 
         try: # pipline backed
-            assert len(steps_cnf) == len(self.steps), \
-            'Pipeline components where not appended properly.'
+            assert len(steps_cnf) == len(self.steps)
         except AssertionError:
+            error('Pipeline components where not appended properly.')
             error('The requested pipeline configuration:')
             pprint(steps_cnf)
             error('Was parsed into the pipeline backed as follows:')
             pprint(self.steps)
+
             raise
+        
+    def reconfigure(self, cnf):        
+        return PipelineWrapper(conf=cnf)
 
     def _create_steps(self, specs, confs):
 
@@ -53,7 +62,6 @@ class ProcessingPipelineWrapper(Pipeline):
                 warn('No backend configuration found for %s. Using defaults.'%class_name)
                 args, kwargs = [], {}
 
-            kwargs['wrapper_num_operants'] = self._num_operants
             kwargs['wrapper_order'] = order + 1
             kwargs['wrapper_num_pipeline_steps'] = len(self.pipeline_steps) + 1
             class_instance = instansiate_engine(module_name, class_name, args, kwargs)

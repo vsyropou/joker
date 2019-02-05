@@ -64,15 +64,16 @@ def has_valid_db_backend(class_instance):
         error('Specify a db backend isntance in your main file, e.g.: %s'%exmpl)
         raise
     try:
-        assert hasattr(class_instance.db, 'query')
+        assert hasattr(class_instance.db, 'cursor')
     except AssertionError as err:
         error('Make sure db instance "%s" has a "query" method'%self.db)
         raise
 
 def has_table(backend, table_name):
     try:
-        assert table_name in list(map(lambda e: e[2], backend.query(list_of_tables_qry)))
+        assert table_name in list(map(lambda e: e[2], backend.execute(list_of_tables_qry)))
     except AssertionError as err:
         error('Cannot locate table "%s" in the database'%table_name)
+        import pdb; pdb.set_trace()
         raise
 

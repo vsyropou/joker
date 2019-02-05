@@ -45,10 +45,9 @@ class UrlRemoverSvc(BaseRegExpService):
         if self.persist_urls:
             try: # data availability
                 assert self.sentence_ids
-                assert len(self.sentence_ids) == self.num_operants
             except AssertionError as err:
                 error('"sentence_ids" argument is required when "persist_urls" is True.')
-                raise
+                raise            
 
             has_valid_db_backend(self)
             has_table(self.db, self.table_name)
@@ -65,6 +64,13 @@ class UrlRemoverSvc(BaseRegExpService):
             operators['persist_urls'] = persist_urls
             arguments['persist_urls'] = [self.db, urls_list, self.sentence_ids, self.table_name]
 
+            # runtime check
+            try:
+                assert len(urls_list) == len(self.sentence_ids)
+            except AssertionError as err:
+                error('Caught RuntimeError')
+                print(err)
+            
         results = { nam : opr(*arguments[nam]) for nam, opr in operators.items()}
 
         return results['url_filter']
@@ -160,7 +166,12 @@ class WordEmbedingsPgSvc(BasePipelineComponent):
 
         has_table(self.db, self.language_model)
 
-        
+        try:
+            assert get_embeding_qry
+        except AssertionError as err:
+            error('Cannot locate "get_embeding_qry" from module utilities.postgres_queries')
+            raise
+
         # guarante persistance of sentences and unknown words
         #  data availability
         for arg_name, flag_name, cond in zip(['sentence_ids',                'sentence_lang'],
@@ -184,6 +195,7 @@ class WordEmbedingsPgSvc(BasePipelineComponent):
                 has_table(self.db, table_names[flag_name])
 
 
+
     def transform(self, sents):
         debug('Progressing %s/%s steps (%s)'%(self.order, self.num_pipeline_steps, self.__class__.__name__))
 
@@ -203,13 +215,20 @@ class WordEmbedingsPgSvc(BasePipelineComponent):
 
     
     def word_to_embeding_token(self, wrd):
+
         try:
-            return self.db.query(get_embeding_qry(wrd, self.language_model))[0][0]
-        except NameError:
-            error('Cannot locate "get_embeding_qry" from module utilities.postgres_queries')
+            response = self.db.execute(get_embeding_qry(wrd, self.language_model))
+            assert response
+            result = response[0][0]
+        except AssertionError:
+            debug('Found unknown word "%s"'%wrd)
+            result = wrd
+        except Exception as err:
+            error('Caught unknown exception')
+            print(err)
             raise
-        except Exception:
-            return wrd
+
+        return result
 
     def _collect_tasks(self, tokenized_sentences):
 
@@ -217,7 +236,7 @@ class WordEmbedingsPgSvc(BasePipelineComponent):
 
         table_names = lambda key: '%s_%s'%(self.table_names[key], self.language_model)
 
-        base_args = [self.db.query, tokenized_sentences]
+        base_args = [self.db, tokenized_sentences]
         arguments = {'unknown_words_filter':  [tokenized_sentences],
                      'persist_sentences':     base_args + [self.sentence_ids,  table_names('persist_sentences')],
                      'persist_unknown_words': base_args + [self.sentence_lang, table_names('persist_unknown_words')]

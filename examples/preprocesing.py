@@ -9,7 +9,7 @@ opts = parser.parse_args()
 from multiprocessing.pool import ThreadPool 
 
 from services.general import MessageService
-from services.pipelines import PreProcessingPipelineWrapper
+from services.pipelines import PipelineWrapper
 from services.streaming import DataStreamerSql
 
 from utilities.postgres_queries import all_tweets_qry
@@ -20,17 +20,14 @@ from utilities.general import Progress, read_json
 # configure services
 msg_srvc = MessageService(print_level = 2 if opts.verbose else 1)
 dbs_srvc = instansiate_engine('services.postgres', 'PostgresWriterService')
-# sql_strm = DataStreamerSql(dbs_srvc.cursor(), all_tweets_qry(['id','text', 'lang']), step=5)
-sql_strm = DataStreamerSql(dbs_srvc.cursor(), 'SELECT id,text,lang FROM tweets LIMIT 20', step=2)
+# sql_strm = DataStreamerSql(dbs_srvc, all_tweets_qry(['id','text', 'lang']), step=5)
+sql_strm = DataStreamerSql(dbs_srvc, 'SELECT id,text,lang FROM tweets LIMIT 40', step=2)
 
 
 # configure pipeline
 conf = read_json(opts.conf_file)
-conf['remove_urls_conf']['kwargs']['wrapper_db'] = dbs_srvc
-conf['map_word_to_embeding_indices_conf']['kwargs']['wrapper_db'] = dbs_srvc
 
-pipeline = PreProcessingPipelineWrapper(conf)
-
+pipeline = PipelineWrapper()
 
 
 def process_batch(btch, cnf, ppl, prg=None):
@@ -39,27 +36,50 @@ def process_batch(btch, cnf, ppl, prg=None):
 
     data = data_prx(btch)
 
+    # print(cnf['remove_urls_conf'])
     update_conf(cnf, btch)
 
+    plvl = MessageService._print_level
+    MessageService.set_print_level(-1)
+    #    ppl = ppl_prx(cnf)
+    # print(cnf['remove_urls_conf'])
+
+    # print([d for d in data])
+    # print(len(btch))
+        
+    try:
+        ppl = ppl.reconfigure(cnf)
+    except Exception:
+        
+        import pdb; pdb.set_trace()
+    MessageService.set_print_level(plvl)
+    # print('csad')
+    # print(cnf['remove_urls_conf'])
+    
+#    import pdb; pdb.set_trace()
     if prg:
         prg[0](jump=prg[1])
 
-    return [ out for out in ppl.transform(data)]
+    results = [out for out in ppl.transform(data)]
+
+    return results
 
     
 def update_conf(cnf, btch):
     #TODO: add exception
     
-    ids  = lambda btch: (r['id'] for r in btch)
-    lang = lambda btch: (r['lang'] for r in btch)
+    ids  = lambda btch: [r['id'] for r in btch]
+    lang = lambda btch: [r['lang'] for r in btch]
 
     cnf['remove_urls_conf']['kwargs']['wrapper_sentence_ids'] = ids(btch)
     cnf['map_word_to_embeding_indices_conf']['kwargs']['wrapper_sentence_ids'] = ids(btch) 
     cnf['map_word_to_embeding_indices_conf']['kwargs']['wrapper_sentence_lang'] = lang(btch)
 
+    conf['remove_urls_conf']['kwargs']['wrapper_db'] = dbs_srvc
+    conf['map_word_to_embeding_indices_conf']['kwargs']['wrapper_db'] = dbs_srvc
 
 # event loop
-def process_stream(cnf, ppl, stream):
+def process_stream(cnf, ppl_prx, stream, num_threads):
     # TODO: check parsed args
     multithread = False
 
@@ -72,21 +92,22 @@ def process_stream(cnf, ppl, stream):
 
             if not multithread:
 
-                results = [process_batch(b, cnf, ppl, prg=(prog,batch_size)) for b in strm]
+                results = [process_batch(b, cnf, ppl_prx, prg=(prog,batch_size)) for b in strm]
                 
             else:
-                pool = ThreadPool(processes=cnf['num_threads'])
+                pool = ThreadPool(processes=num_threads)
 
-                proxy = lambda b: process_batch(b, cnf, ppl, prg=(prog,batch_size))
+                proxy = lambda b: process_batch(b, cnf, ppl_prx, prg=(prog,batch_size))
 
                 results = pool.map(proxy, strm)
 
                 pool.close()
                 pool.join()
 
+    print(results)
     return results
         
-#TODO: all these can go to the pipline interface        
+#TODO: all these can go to the pipline interface
 
-out = process_stream(conf, pipeline, sql_strm)
+out = process_stream(conf, pipeline, sql_strm, 2)
 print(out)
