@@ -49,7 +49,7 @@ def instansiate_engine(*arguments):
         error('Cannot instansiate class "%s"'%(class_proxy.__name__))
         raise
 
-    info('Instansiated class "%s"'%class_proxy.__name__)
+    debug('Instansiated class "%s"'%class_proxy.__name__)
     if args:   debug(' args %s'%args)
     if kwargs: debug(' kwargs %s'%kwargs)
 

@@ -9,20 +9,20 @@ from utilities.import_tools import import_module_proxy, import_class_proxy, inst
 
 __all__ = ['BasePipelineComponent', 'PreProcessingPipelineWrapper']
 
-class PreProcessingPipelineWrapper(Pipeline):
+class ProcessingPipelineWrapper(Pipeline):
 
     def __init__(self, conf, **kwargs):
 
         # parse configuration
         try:
-            setattr(self, 'version', conf.pop('pipeline_version'))
+            setattr(self, 'version', conf.get('pipeline_version'))
         except Exception:
             error('Attribute "pipeline_version" is mandatory and was not found in the conf file "%s"'%conf_file)
             raise
         
-        memory    = conf.pop('memory', False)
-        steps_cnf = conf.pop('steps', None) 
-        self._num_operants = kwargs.pop('num_operants', -1)
+        memory    = conf.get('memory', False)
+        steps_cnf = conf.get('steps', None) 
+        self._num_operants = kwargs.get('num_operants', -1)
         
         # create pipline steps
         assert len(steps_cnf) >= 1, 'Pipeline without any components.'
@@ -47,8 +47,8 @@ class PreProcessingPipelineWrapper(Pipeline):
         for order, (module_name, class_name, step_name) in enumerate(specs):
 
             try: # default conf safety
-                args   = confs['%s_conf'%step_name].pop('args', [])
-                kwargs = confs['%s_conf'%step_name].pop('kwargs', {})
+                args   = confs['%s_conf'%step_name].get('args', [])
+                kwargs = confs['%s_conf'%step_name].get('kwargs', {})
             except KeyError as err:
                 warn('No backend configuration found for %s. Using defaults.'%class_name)
                 args, kwargs = [], {}
@@ -61,18 +61,6 @@ class PreProcessingPipelineWrapper(Pipeline):
             self.pipeline_steps += [(step_name, class_instance)]
         return self.pipeline_steps
 
-
-    def reconfigure(self, cnf, **kwargs):
-        info('Reconfiguring pipeline')
-
-        print_lvl = MessageService._print_level
-        MessageService.set_print_level(-1)
-        try:
-            return self.__init__(cnf, **kwargs)
-        except Exception as err:
-            error('Failed to reconfigure pipline')
-            raise
-        MessageService.set_print_level(print_lvl)
 
 class AbsPipelineComponent(abc.ABC):
 
@@ -116,8 +104,8 @@ class BasePipelineComponent(AbsPipelineComponent):
             if not hasattr(self, arg):
                 class_name = self.__class__.__name__
                 try:
-                    warn('%s: argument "%s" has no value, assuming default'%(class_name,arg))
-                    warn(val)
+                    warn('%s: argument "%s" has no value using defaults:' %(class_name,arg))
+                    debug(val)
                     setattr(self, arg, val)
                 except Exception as err:
                     error('Cannot set default valeus for argument %s'%arg)

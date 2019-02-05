@@ -5,7 +5,7 @@ def persist(backend, insert_qry):
     
     try: # insert query
         backend(insert_qry)
-        info('Excecuted query: %s'%insert_qry)
+        debug('Excecuted query: %s'%insert_qry)
         rtrn = True
     except UniqueViolationError as err:
         #TODO: Fix this exception for psycorg

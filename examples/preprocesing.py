@@ -6,51 +6,87 @@ parser.add_argument("--input-tweets", help="tweets csv file path")
 parser.add_argument("--verbose", action='store_true', help="maximum output")
 opts = parser.parse_args()
 
+from multiprocessing.pool import ThreadPool 
 
 from services.general import MessageService
 from services.pipelines import PreProcessingPipelineWrapper
+from services.streaming import DataStreamerSql
+
 from utilities.postgres_queries import all_tweets_qry
 from utilities.import_tools import instansiate_engine
-from utilities.general import read_json
+from utilities.general import Progress, read_json
 
-limit = 5 # for developing
 
-# get some data
-db_backend  = instansiate_engine('services.postgres', 'PostgresWriterService')
-query_result = db_backend.query(all_tweets_qry(['id','text', 'lang']))
-
-tweets = list(map(lambda tpl: tpl[1], query_result))[:limit]
-twkeys = list(map(lambda tpl: tpl[0], query_result))[:limit]
-twlang = list(map(lambda tpl: tpl[2], query_result))[:limit]
+# configure services
+msg_srvc = MessageService(print_level = 2 if opts.verbose else 1)
+dbs_srvc = instansiate_engine('services.postgres', 'PostgresWriterService')
+# sql_strm = DataStreamerSql(dbs_srvc.cursor(), all_tweets_qry(['id','text', 'lang']), step=5)
+sql_strm = DataStreamerSql(dbs_srvc.cursor(), 'SELECT id,text,lang FROM tweets LIMIT 20', step=2)
 
 
 # configure pipeline
 conf = read_json(opts.conf_file)
+conf['remove_urls_conf']['kwargs']['wrapper_db'] = dbs_srvc
+conf['map_word_to_embeding_indices_conf']['kwargs']['wrapper_db'] = dbs_srvc
 
-conf['remove_urls_conf']['kwargs']['wrapper_db'] = db_backend
-conf['remove_urls_conf']['kwargs']['wrapper_sentence_ids'] = twkeys
-
-conf['map_word_to_embeding_indices_conf']['kwargs']['wrapper_db'] = db_backend
-conf['map_word_to_embeding_indices_conf']['kwargs']['wrapper_sentence_ids'] = twkeys
-conf['map_word_to_embeding_indices_conf']['kwargs']['wrapper_sentence_lang'] = twlang
+pipeline = PreProcessingPipelineWrapper(conf)
 
 
-# initialize services
-msg_svc = MessageService(print_level = 2 if opts.verbose else 1)
 
-pipeline = PreProcessingPipelineWrapper(conf, num_operants=len(tweets))
+def process_batch(btch, cnf, ppl, prg=None):
 
-out = list(pipeline.transform(list(tweets)))
+    data_prx = lambda btch: (r['text'] for r in btch)
+
+    data = data_prx(btch)
+
+    update_conf(cnf, btch)
+
+    if prg:
+        prg[0](jump=prg[1])
+
+    return [ out for out in ppl.transform(data)]
+
+    
+def update_conf(cnf, btch):
+    #TODO: add exception
+    
+    ids  = lambda btch: (r['id'] for r in btch)
+    lang = lambda btch: (r['lang'] for r in btch)
+
+    cnf['remove_urls_conf']['kwargs']['wrapper_sentence_ids'] = ids(btch)
+    cnf['map_word_to_embeding_indices_conf']['kwargs']['wrapper_sentence_ids'] = ids(btch) 
+    cnf['map_word_to_embeding_indices_conf']['kwargs']['wrapper_sentence_lang'] = lang(btch)
 
 
-# pipeline.reconfigure(conf, num_operants=len(tweets) )
+# event loop
+def process_stream(cnf, ppl, stream):
+    # TODO: check parsed args
+    multithread = False
 
+    with stream as strm :
 
-# total = 100000
-# fnc = lambda :sleep(2)
+        num_records = sql_strm.nrows
+        batch_size = sql_strm.batch_size
 
-# with Progress(total, name='douplesere') as pr:
+        with Progress(num_records, name='Give pipline a name') as prog:
 
-#     for i in range(100000):
-#         #fnc()
-#         pr()
+            if not multithread:
+
+                results = [process_batch(b, cnf, ppl, prg=(prog,batch_size)) for b in strm]
+                
+            else:
+                pool = ThreadPool(processes=cnf['num_threads'])
+
+                proxy = lambda b: process_batch(b, cnf, ppl, prg=(prog,batch_size))
+
+                results = pool.map(proxy, strm)
+
+                pool.close()
+                pool.join()
+
+    return results
+        
+#TODO: all these can go to the pipline interface        
+
+out = process_stream(conf, pipeline, sql_strm)
+print(out)

@@ -5,7 +5,6 @@ import abc
 import numpy as np
 from nltk.corpus import stopwords
 from string import punctuation
-from multiprocessing.pool import ThreadPool 
 
 from services.pipelines import BasePipelineComponent
 from utilities.general import info, warn, error, debug
@@ -17,7 +16,7 @@ from utilities.postgres_queries import  get_embeding_qry, list_of_tables_qry
 class BaseRegExpService(BasePipelineComponent):
 
     def transform(self, sents):
-        info('Progressing %s/%s steps (%s)'%(self.order, self.num_pipeline_steps, self.__class__.__name__))
+        debug('Progressing %s/%s steps (%s)'%(self.order, self.num_pipeline_steps, self.__class__.__name__))
         return [re.sub(self._regular_expresion, '', snt) for snt in sents]
 
 
@@ -66,13 +65,7 @@ class UrlRemoverSvc(BaseRegExpService):
             operators['persist_urls'] = persist_urls
             arguments['persist_urls'] = [self.db, urls_list, self.sentence_ids, self.table_name]
 
-        # excecute multirehad / singlthread
-        if self.multithread:
-            pool = ThreadPool(processes=self.workers)
-            thread = lambda op, nam: pool.apply_async(op, arguments[nam]).get()            
-            results =  { nam : thread(opr,nam) for nam, opr in operators.items()}
-        else:
-            results = { nam : opr(*arguments[nam]) for nam, opr in operators.items()}
+        results = { nam : opr(*arguments[nam]) for nam, opr in operators.items()}
 
         return results['url_filter']
 
@@ -101,14 +94,14 @@ class StopWordsRemoverSvc(BasePipelineComponent):
         self._stop_words += list(map(str.lower, self.add_stopwords))
 
     def transform(self, sents):
-        info('Progressing %s/%s steps (%s)'%(self.order, self.num_pipeline_steps, self.__class__.__name__))
+        debug('Progressing %s/%s steps (%s)'%(self.order, self.num_pipeline_steps, self.__class__.__name__))
         condition = lambda snt: [w for w in snt if w not in self._stop_words]
 
         return map(condition, sents)
 
 
 class EmojiReplacerSvc(BasePipelineComponent):
-    # TODO: Too slow maybe multithread??
+
     wraped_class_def = ['emoji', 'demojize']
     
     def __init__(self, *args, **kwargs):
@@ -118,7 +111,7 @@ class EmojiReplacerSvc(BasePipelineComponent):
         self._check_derived_class_argument(['delimeters'], [[" <","> "]])
 
     def transform(self, sents):
-        info('Progressing %s/%s steps (%s)'%(self.order, self.num_pipeline_steps, self.__class__.__name__))
+        debug('Progressing %s/%s steps (%s)'%(self.order, self.num_pipeline_steps, self.__class__.__name__))
         return np.array([self.underlying_engine(s, delimiters=self.delimeters) for s in sents])
 
 class NumberReplacerSvc(BasePipelineComponent):
@@ -126,7 +119,7 @@ class NumberReplacerSvc(BasePipelineComponent):
     wraped_class_def = ['inflect', 'engine']
 
     def transform(self, sents):
-        info('Progressing %s/%s steps (%s)'%(self.order, self.num_pipeline_steps, self.__class__.__name__))
+        debug('Progressing %s/%s steps (%s)'%(self.order, self.num_pipeline_steps, self.__class__.__name__))
         replace_func = lambda w: number_to_string(w) if w.isnumeric() else w
         to_numeric_representation = lambda w: int(w) if w.isdecimal() else float(w)
 
@@ -141,7 +134,7 @@ class TweeterTokenizerSvc(BasePipelineComponent):
     _tokenizer = lambda self, snt: snt.lower().split()
 
     def transform(self, sents):
-        info('Progressing %s/%s steps (%s)'%(self.order, self.num_pipeline_steps, self.__class__.__name__))
+        debug('Progressing %s/%s steps (%s)'%(self.order, self.num_pipeline_steps, self.__class__.__name__))
         return np.array([self._tokenizer(s) for s in sents])
 
 
@@ -153,8 +146,8 @@ class WordEmbedingsPgSvc(BasePipelineComponent):
 
         # check attributes
         self._check_derived_class_argument(["persist_sentences", "persist_unknown_words",
-                                            "sentence_ids", "sentence_lang", 'table_names', 'multithread', 'workers'],
-                                           [False, False, None, None, {}, False, 5])
+                                            "sentence_ids", "sentence_lang", 'table_names'],
+                                           [False, False, None, None, {}, False])
 
         # guarantee db engine
         has_valid_db_backend(self)
@@ -192,23 +185,15 @@ class WordEmbedingsPgSvc(BasePipelineComponent):
 
 
     def transform(self, sents):
-        info('Progressing %s/%s steps (%s)'%(self.order, self.num_pipeline_steps, self.__class__.__name__))
+        debug('Progressing %s/%s steps (%s)'%(self.order, self.num_pipeline_steps, self.__class__.__name__))
 
         # basic sentemnce filtering
         tokenized_sentences = [self.sentence_to_embeding_tokens(snt) for snt in sents]
 
         # colect tasks
         operators, arguments = self._collect_tasks(tokenized_sentences)
-        
-        # multi or single thread ?
-        if self.multithread:
-            pool = ThreadPool(processes=self.workers)
-            thread = lambda op, nam: pool.apply_async(op, arguments[nam]).get()
 
-            results =  { nam : thread(opr,nam) for nam, opr in operators.items()}
-
-        else:
-            results = { nam : opr(*arguments[nam]) for nam, opr in operators.items()}
+        results = { nam : opr(*arguments[nam]) for nam, opr in operators.items()}
 
         return results['unknown_words_filter']
 

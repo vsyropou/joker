@@ -52,6 +52,9 @@ class Progress():
         self._counter += jump
 
     def __exit__(self, *args):
+        self._counter = self._total
+        self()
+        self._counter = 0
         print()
 
 

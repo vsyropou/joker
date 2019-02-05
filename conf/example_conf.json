@@ -13,12 +13,12 @@
 	["services.preprocesing", "WordEmbedingsPgSvc",    "map_word_to_embeding_indices"]
     ],
     "memory": false,
+    "multithread": true,
+    "num_threads": 5,
     "remove_urls_conf": {
 	"kwargs": {
  	    "wrapper_persist_urls": false,
-	    "wrapper_table_name": "urls",
-	    "wrapper_multithread": false,
-	    "wrapper_workers": 2
+	    "wrapper_table_name": "urls"
 	}
     },
     "replace_emojis_conf": {
@@ -35,8 +35,6 @@
 	"kwargs":{
 	    "wrapper_persist_sentences": false,
 	    "wrapper_persist_unknown_words": false,
-	    "wrapper_multithread": false,
-	    "wrapper_workers": 5,
 	    "wrapper_table_names": {
 		"persist_sentences": "tweets_with_embs_idx",
 		"persist_unknown_words": "unknownwords",
