@@ -20,8 +20,8 @@ from utilities.general import Progress, read_json
 # configure services
 msg_srvc = MessageService(print_level = 2 if opts.verbose else 1)
 dbs_srvc = instansiate_engine('services.postgres', 'PostgresWriterService')
-# sql_strm = DataStreamerSql(dbs_srvc, all_tweets_qry(['id','text', 'lang']), step=5)
-sql_strm = DataStreamerSql(dbs_srvc, 'SELECT id,text,lang FROM tweets LIMIT 40', step=2)
+sql_strm = DataStreamerSql(dbs_srvc, all_tweets_qry(['id','text', 'lang']), step=100)
+# sql_strm = DataStreamerSql(dbs_srvc, 'SELECT id,text,lang FROM tweets LIMIT 40', step=2)
 
 
 # configure pipeline
@@ -36,27 +36,15 @@ def process_batch(btch, cnf, ppl, prg=None):
 
     data = data_prx(btch)
 
-    # print(cnf['remove_urls_conf'])
     update_conf(cnf, btch)
 
     plvl = MessageService._print_level
     MessageService.set_print_level(-1)
-    #    ppl = ppl_prx(cnf)
-    # print(cnf['remove_urls_conf'])
 
-    # print([d for d in data])
-    # print(len(btch))
-        
-    try:
-        ppl = ppl.reconfigure(cnf)
-    except Exception:
-        
-        import pdb; pdb.set_trace()
+    ppl = ppl.reconfigure(cnf)
+
     MessageService.set_print_level(plvl)
-    # print('csad')
-    # print(cnf['remove_urls_conf'])
-    
-#    import pdb; pdb.set_trace()
+
     if prg:
         prg[0](jump=prg[1])
 
@@ -75,8 +63,8 @@ def update_conf(cnf, btch):
     cnf['map_word_to_embeding_indices_conf']['kwargs']['wrapper_sentence_ids'] = ids(btch) 
     cnf['map_word_to_embeding_indices_conf']['kwargs']['wrapper_sentence_lang'] = lang(btch)
 
-    conf['remove_urls_conf']['kwargs']['wrapper_db'] = dbs_srvc
-    conf['map_word_to_embeding_indices_conf']['kwargs']['wrapper_db'] = dbs_srvc
+    conf['remove_urls_conf']['kwargs']['wrapper_db'] = instansiate_engine('services.postgres', 'PostgresWriterService')
+    conf['map_word_to_embeding_indices_conf']['kwargs']['wrapper_db'] = instansiate_engine('services.postgres', 'PostgresWriterService')
 
 # event loop
 def process_stream(cnf, ppl_prx, stream, num_threads):
@@ -105,7 +93,7 @@ def process_stream(cnf, ppl_prx, stream, num_threads):
                 pool.join()
 
     print(results)
-    return results
+    return [r for r in results]
         
 #TODO: all these can go to the pipline interface
 

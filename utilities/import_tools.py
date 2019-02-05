@@ -74,6 +74,5 @@ def has_table(backend, table_name):
         assert table_name in list(map(lambda e: e[2], backend.execute(list_of_tables_qry)))
     except AssertionError as err:
         error('Cannot locate table "%s" in the database'%table_name)
-        import pdb; pdb.set_trace()
         raise
 

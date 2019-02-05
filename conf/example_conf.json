@@ -32,11 +32,11 @@
     },
     "map_word_to_embeding_indices_conf":{
 	"kwargs":{
-	    "wrapper_persist_sentences": false,
-	    "wrapper_persist_unknown_words": false,
+	    "wrapper_persist_sentences": true,
+	    "wrapper_persist_unknown_words": true,
 	    "wrapper_table_names": {
-		"persist_sentences": "tweets_with_embs_idx",
-		"persist_unknown_words": "unknownwords",
+		"persist_sentences": "tweets_with_embs_idx_glove25",
+		"persist_unknown_words": "unknownwords_glove25",
 		"language_model": "embedings_glove25"
 	    }
 	}

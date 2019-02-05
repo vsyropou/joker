@@ -2,8 +2,9 @@ from utilities.postgres_queries import insert_qry
 from utilities.general import info, warn, error, debug
 
 def persist(backend, insert_qry):
-    #TODO: THis is not necessery anymore
+
     backend.execute_insert(insert_qry)
+
     debug('Excecuted query: %s'%insert_qry)
 
     return True

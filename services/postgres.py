@@ -75,8 +75,13 @@ class BasePostgressService(AbsPostgressService):
 
     def execute(self, qry):
 
-        cursor = self.cursor()
-        cursor.execute(qry)
+        try:
+            cursor = self.cursor()
+            cursor.execute(qry)
+        except Exception as err:
+            error('Caught runtime postgres exception')
+            print(err)
+            raise
 
         return cursor.fetchall()
 
@@ -92,12 +97,12 @@ class BasePostgressService(AbsPostgressService):
             self.conn.rollback()
             
             if err.pgcode == '23505':
-                warn('Primary key constraint violation when executing: %s'%qry)
-                warn('Rolled back query: %s'%qry)
+                warn('Primary key vioaltion. Rolled back query: %s'%qry)
             else:
-                error('Caught postgress error when: %s'%qry)
-                print(err)
+                error('Runtime exception caught, when: %s'%qry)
+                print(err,err.pgcode)
                 raise
+
 
         cursor.close()
 

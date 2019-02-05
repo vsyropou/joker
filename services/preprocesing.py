@@ -154,7 +154,7 @@ class WordEmbedingsPgSvc(BasePipelineComponent):
         self._check_derived_class_argument(["persist_sentences", "persist_unknown_words",
                                             "sentence_ids", "sentence_lang", 'table_names'],
                                            [False, False, None, None, {}, False])
-
+        
         # guarantee db engine
         has_valid_db_backend(self)
         
@@ -192,7 +192,7 @@ class WordEmbedingsPgSvc(BasePipelineComponent):
                     error(msg)
                     raise
 
-                has_table(self.db, table_names[flag_name])
+                has_table(self.db, self.table_names[flag_name])
 
 
 
@@ -234,12 +234,12 @@ class WordEmbedingsPgSvc(BasePipelineComponent):
 
         unkown_words_filter = lambda embd_snts: [[w for w in snt if str!=type(w)==int] for snt in embd_snts]
 
-        table_names = lambda key: '%s_%s'%(self.table_names[key], self.language_model)
+        tnams = lambda key: self.table_names[key]
 
         base_args = [self.db, tokenized_sentences]
         arguments = {'unknown_words_filter':  [tokenized_sentences],
-                     'persist_sentences':     base_args + [self.sentence_ids,  table_names('persist_sentences')],
-                     'persist_unknown_words': base_args + [self.sentence_lang, table_names('persist_unknown_words')]
+                     'persist_sentences':     base_args + [self.sentence_ids,  tnams('persist_sentences')],
+                     'persist_unknown_words': base_args + [self.sentence_lang, tnams('persist_unknown_words')]
                      }
 
         operators = {}

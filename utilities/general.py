@@ -24,11 +24,14 @@ class Progress():
         
         self._counter = 0
 
-    def __enter__(self):
         msg  = 'Displaying progress'
         msg += ' of "%s":'%self._name if self._name else ''
         msg += ' ( Make coffee and be patient :-P ):'
-        info(msg)
+        self._msg = msg
+
+    def __enter__(self):
+        
+        print(self._msg)
 
         return self
         
@@ -44,7 +47,8 @@ class Progress():
         bar = '=' * filled_len + '-' * (bar_len - filled_len)
 
         sys.stdout.flush()
-        
+
+        sys.stdout.write(self._msg+'\n')
         sys.stdout.write('[%s] %s%s ... [%s]\r' % (bar, percents, '%', annimation_icn))
 
         sys.stdout.flush()
