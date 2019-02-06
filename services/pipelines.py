@@ -7,7 +7,7 @@ from sklearn.pipeline import Pipeline
 from utilities.general import info, warn, error, debug, MessageService
 from utilities.import_tools import import_module_proxy, import_class_proxy, instansiate_engine
 
-__all__ = ['BasePipelineComponent', 'PreProcessingPipelineWrapper']
+__all__ = ['BasePipelineComponent', 'PipelineWrapper']
 
 class PipelineWrapper(Pipeline):
 

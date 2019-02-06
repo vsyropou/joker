@@ -14,6 +14,7 @@ from utilities.postgres_queries import column_names_qry,\
     create_embs_table_qry, copy_csv_to_table_qry
 
 # db service
+#TODO: Update to new db engine
 db = PostgresReaderService()
 
 table_name = opts.table_name

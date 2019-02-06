@@ -5,6 +5,7 @@ import abc
 import numpy as np
 from nltk.corpus import stopwords
 from string import punctuation
+from inflect import NumOutOfRangeError
 
 from services.pipelines import BasePipelineComponent
 from utilities.general import info, warn, error, debug
@@ -28,6 +29,15 @@ class HandlesRemoverSvc(BaseRegExpService):
 
     _regular_expresion = re.compile("\S*@\S*\s?")
 
+
+class HashtagRemoverSvc(BaseRegExpService):
+
+    _regular_expresion = re.compile("(?:\#+[\w_]+[\w\'_\-]*[\w_]+)")
+
+
+class PunktuationRemoverSvc(BaseRegExpService):
+
+    _regular_expresion = re.compile('[%s]' % re.escape(punctuation + "…"))
 
 class UrlRemoverSvc(BaseRegExpService):
 
@@ -75,15 +85,6 @@ class UrlRemoverSvc(BaseRegExpService):
 
         return results['url_filter']
 
-class HashtagRemoverSvc(BaseRegExpService):
-
-    _regular_expresion = re.compile("(?:\#+[\w_]+[\w\'_\-]*[\w_]+)")
-
-
-class PunktuationRemoverSvc(BaseRegExpService):
-
-    _regular_expresion = re.compile('[%s]' % re.escape(punctuation + "…"))
-
 
 class StopWordsRemoverSvc(BasePipelineComponent):
 
@@ -126,12 +127,22 @@ class NumberReplacerSvc(BasePipelineComponent):
 
     def transform(self, sents):
         debug('Progressing %s/%s steps (%s)'%(self.order, self.num_pipeline_steps, self.__class__.__name__))
+
+        def number_to_string(num):
+            try:
+                string = self.underlying_engine.number_to_words(num)
+            except NumOutOfRangeError:
+                warn('NumOutOfRangeError caught from inflect engine for %s'%num)
+                string = ''
+            except Exception:
+                warn('Caught unknown exception from inflect engine')
+                string = ''
+            return string
+        
         replace_func = lambda w: number_to_string(w) if w.isnumeric() else w
-        to_numeric_representation = lambda w: int(w) if w.isdecimal() else float(w)
-
-        number_to_string = lambda n: self.underlying_engine.number_to_words(n)
-
+        
         condition = lambda snt: [replace_func(w) for w in snt]
+
         return map(condition, sents)
 
 

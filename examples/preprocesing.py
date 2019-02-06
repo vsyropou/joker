@@ -10,7 +10,7 @@ from multiprocessing.pool import ThreadPool
 
 from services.general import MessageService
 from services.pipelines import PipelineWrapper
-from services.streaming import DataStreamerSql
+from services.streaming import SqlReadStreamer
 
 from utilities.postgres_queries import all_tweets_qry
 from utilities.import_tools import instansiate_engine
@@ -20,8 +20,8 @@ from utilities.general import Progress, read_json
 # configure services
 msg_srvc = MessageService(print_level = 2 if opts.verbose else 1)
 dbs_srvc = instansiate_engine('services.postgres', 'PostgresWriterService')
-sql_strm = DataStreamerSql(dbs_srvc, all_tweets_qry(['id','text', 'lang']), step=100)
-# sql_strm = DataStreamerSql(dbs_srvc, 'SELECT id,text,lang FROM tweets LIMIT 40', step=2)
+# sql_strm = DataStreamerSql(dbs_srvc, all_tweets_qry(['id','text', 'lang']), step=100)
+sql_strm = SqlReadStreamer(dbs_srvc, 'SELECT id,text,lang FROM tweets OFFSET 52900', step=500)
 
 
 # configure pipeline
