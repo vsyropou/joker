@@ -20,7 +20,7 @@ class PipelineWrapper(Pipeline):
         if not delay_conf:
             self.configure(conf)
 
-    def configure(self):
+    def configure(self, conf):
 
         # parse configuration
         for arg in ['pipeline_version', 'pipeline_name' ]:
@@ -32,7 +32,7 @@ class PipelineWrapper(Pipeline):
 
         memory    = self.conf.get('memory', False)
         steps_cnf = self.conf.get('steps', None)
-    
+
         # create pipline steps
         assert len(steps_cnf) >= 1, 'Pipeline without any components.'
         self.pipeline_steps = self._create_steps(steps_cnf, self.conf)
@@ -51,7 +51,7 @@ class PipelineWrapper(Pipeline):
 
             raise
         
-    def reconfigure(self, cnf):        
+    def reconfigure(self, cnf):
         return PipelineWrapper(self.name, self.version, cnf, delay_conf=False)
 
     def _create_steps(self, specs, confs):

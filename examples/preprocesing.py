@@ -19,7 +19,7 @@ from utilities.general import read_json
 msg_srvc = MessageService(print_level = 2 if opts.verbose else 1)
 dbs_srvc = instansiate_engine('services.postgres', 'PostgresWriterService')
 # sql_strm = DataStreamerSql(dbs_srvc, all_tweets_qry(['id','text', 'lang']), step=100)
-sql_strm = SqlReadStreamer(dbs_srvc, 'SELECT id,text,lang FROM tweets OFFSET 10', step=2)
+sql_strm = SqlReadStreamer(dbs_srvc, 'SELECT id,text,lang FROM tweets OFFSET 86100', step=100)
 
 
 # configure pipeline
@@ -31,6 +31,7 @@ cnf = read_json(opts.conf_file)
 # cnf['map_word_to_embeding_indices_conf']['kwargs']['wrapper_sentence_ids'] = 'ids'
 
 ppl_name    = opts.conf_file.split('/')[-1].split('.json')[0]
+
 ppl_version = cnf['pipeline_version']
 
 pipeline = PipelineWrapper(ppl_name, ppl_version, cnf, delay_conf=True)

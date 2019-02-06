@@ -48,7 +48,6 @@ class Progress():
 
         sys.stdout.flush()
 
-        sys.stdout.write(self._msg+'\n')
         sys.stdout.write('[%s] %s%s ... [%s]\r' % (bar, percents, '%', annimation_icn))
 
         sys.stdout.flush()

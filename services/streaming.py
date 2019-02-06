@@ -33,6 +33,9 @@ class SqlReadStreamer():
         
         self._generator = (records() for _ in range(0,self.nrows,step))
 
+        #TDOO: Totaly replace this with a permanenet solution for configuring pipelines
+        self._backed = bdbcknd
+        
     def __enter__(self):
         info('Executing stream')
         return self._generator
@@ -77,7 +80,7 @@ class BaseSqlStreamTransformer():
 
             with Progress(num_records, name=nam) as prog:
 
-                if not self._num_threads == 1:
+                if self._num_threads == 1:
 
                     results = [self._process_batch(b, prg=(prog,batch_size)) for b in strm]
                 
@@ -87,7 +90,7 @@ class BaseSqlStreamTransformer():
                     proxy = lambda b: self._process_batch(b, prg=(prog,batch_size))
 
                     results = pool.map(proxy, strm)
-
+                    #TODO: maybe join before calling map??, I am not sure
                     pool.close()
                     pool.join()
 
@@ -95,40 +98,40 @@ class BaseSqlStreamTransformer():
         return [r for r in results]
 
 
-
-class TweetSqlStreamParser(BaseSqlStreamTransformer):
-
-    def _process_batch(self, btch, prg=None):
-
-        data_prx = lambda btch: (r['text'] for r in btch)
-        data = data_prx(btch)
-
-        self._update_conf(btch)
+    def _reconfigure_pipeline(self):
 
         plvl = MessageService._print_level
+
         MessageService.set_print_level(-1)
 
         self._pipeline = self._pipeline.reconfigure(self._pipeline.conf)
 
         MessageService.set_print_level(plvl)
 
-        if prg:
-            prg[0](jump=prg[1])
-
-        results = [out for out in self._pipeline.transform(data)]
-
         
+class TweetSqlStreamParser(BaseSqlStreamTransformer):
+
+    def _process_batch(self, btch, prg=None):
+
+        self._update_conf(btch)
+
+        self._reconfigure_pipeline()
         
-        return results
+        if prg: prg[0](jump=prg[1])
+        #TODO: this is too rigid, need to make classes
+        #     agnostic to the specifics of the dataset
+        data = (r['text'] for r in btch)
+
+        return [out for out in self._pipeline.transform(data)]
 
 
     def _update_conf(self, btch):
-        #TODO: Make this update obsolete, this is very tedieous
+        #TODO: Make this methos obsolete, this is very tedieous, can be done much less coupled
 
         cnf = self._pipeline.conf
-        
+
         column_getter = lambda cnam, btch: [r[cnam] for r in btch]
-        
+        cnf['map_word_to_embeding_indices_conf']['kwargs']['wrapper_db'] = self._streamer._backed
         cnf['map_word_to_embeding_indices_conf']['kwargs']['wrapper_sentence_ids'] = column_getter('id',btch)
 
 
