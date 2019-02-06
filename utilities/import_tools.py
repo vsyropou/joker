@@ -45,8 +45,9 @@ def instansiate_engine(*arguments):
     class_proxy = import_class_proxy(module_name, class_name)
     try:
         class_instance = class_proxy(*args, **kwargs)
-    except Exception:
+    except Exception as err:
         error('Cannot instansiate class "%s"'%(class_proxy.__name__))
+        print(err)
         raise
 
     debug('Instansiated class "%s"'%class_proxy.__name__)

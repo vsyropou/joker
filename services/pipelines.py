@@ -11,27 +11,31 @@ __all__ = ['BasePipelineComponent', 'PipelineWrapper']
 
 class PipelineWrapper(Pipeline):
 
-    def __init__(self, conf=None):
+    def __init__(self, name, version, conf, delay_conf=False):
 
-        if conf:
+        self.name = name
+        self.version = version
+        self.conf = conf
+
+        if not delay_conf:
             self.configure(conf)
 
-    def configure(self, conf):
+    def configure(self):
 
         # parse configuration
         for arg in ['pipeline_version', 'pipeline_name' ]:
             try:
-                setattr(self, arg, conf.get(arg))
+                setattr(self, arg, self.conf.get(arg))
             except Exception:
                 error('"%s" is mandatory, not found in the provided configuration:'%arg)
                 raise
 
-        memory    = conf.get('memory', False)
-        steps_cnf = conf.get('steps', None)
+        memory    = self.conf.get('memory', False)
+        steps_cnf = self.conf.get('steps', None)
     
         # create pipline steps
         assert len(steps_cnf) >= 1, 'Pipeline without any components.'
-        self.pipeline_steps = self._create_steps(steps_cnf, conf)
+        self.pipeline_steps = self._create_steps(steps_cnf, self.conf)
 
         # pipeline backend
         super().__init__(steps=self.pipeline_steps, memory=memory)
@@ -48,7 +52,7 @@ class PipelineWrapper(Pipeline):
             raise
         
     def reconfigure(self, cnf):        
-        return PipelineWrapper(conf=cnf)
+        return PipelineWrapper(self.name, self.version, cnf, delay_conf=False)
 
     def _create_steps(self, specs, confs):
 

@@ -2,6 +2,7 @@ import traceback
 import inspect
 
 class MessageService():
+    # Use with our own RISK, this inspect.stack() causes trouble unpredictably.
 
     _instansiated = False
         
@@ -38,8 +39,12 @@ class MessageService():
                     func = call_frame.name,
                     line = call_frame.lineno
                     )
-    
-        stack = inspect.stack()
+        try:
+            stack = inspect.stack()
+        except Exception as err:
+            print(err)
+            stack = None
+            
         get_frame = lambda nam, lin: filter(lambda frm: frm.function==nam and frm.lineno==lin, stack)
     
         try:

@@ -1,5 +1,12 @@
 
-from utilities.general import info
+from multiprocessing.pool import ThreadPool
+
+from services.general import MessageService
+from utilities.general import info, warn, error, debug
+from utilities.general import Progress
+
+# class AbsReadStreamer():
+#     # define itenterface
 
 class SqlReadStreamer():
     
@@ -43,75 +50,89 @@ class SqlReadStreamer():
         return recs
 
 
-# class BaseSqlStreamTransformer():
+class BaseSqlStreamTransformer():
 
-#     def __init__(self,*args):
-#         pass
+    def __init__(self, *args, nthreads = 1):
+
+        # parse args
+        try:
+            self._pipeline = args[0]
+            self._streamer = args[1]
+        except Exception as err:
+            error('naaaaaa')
+            print(err)
+
+        self._num_threads = nthreads
+
+        self._processed = False
     
-#     def process_stream(cnf, ppl_prx, stream, num_threads):
-#         # TODO: check parsed args
-#         multithread = False
-#         with stream as strm :
+    def process(self):
 
-#             num_records = sql_strm.nrows
-#             batch_size = sql_strm.batch_size
+        with self._streamer as strm :
+            
+            num_records = self._streamer.nrows
+            batch_size = self._streamer.batch_size
 
-#             with Progress(num_records, name='Give pipline a name') as prog:
+            nam = '%s_%s'%(self._pipeline.name,self._pipeline.version)
 
-#                 if not multithread:
+            with Progress(num_records, name=nam) as prog:
 
-#                     results = [process_batch(b, cnf, ppl_prx, prg=(prog,batch_size)) for b in strm]
+                if not self._num_threads == 1:
+
+                    results = [self._process_batch(b, prg=(prog,batch_size)) for b in strm]
                 
-#                 else:
-#                     pool = ThreadPool(processes=num_threads)
+                else:
+                    pool = ThreadPool(processes=self._num_threads)
 
-#                     proxy = lambda b: process_batch(b, cnf, ppl_prx, prg=(prog,batch_size))
+                    proxy = lambda b: self._process_batch(b, prg=(prog,batch_size))
 
-#                     results = pool.map(proxy, strm)
+                    results = pool.map(proxy, strm)
 
-#                     pool.close()
-#                     pool.join()
+                    pool.close()
+                    pool.join()
 
-#         print(results)
-#         return [r for r in results]
-
-#     def process_batch(btch, cnf, ppl, prg=None):
-
-#         data_prx = lambda btch: (r['text'] for r in btch)
-
-#         data = data_prx(btch)
-
-#         update_conf(cnf, btch)
-
-#         plvl = MessageService._print_level
-#         MessageService.set_print_level(-1)
-
-#         ppl = ppl.reconfigure(cnf)
-
-#         MessageService.set_print_level(plvl)
-
-#         if prg:
-#             prg[0](jump=prg[1])
-
-#         results = [out for out in ppl.transform(data)]
-
-#         return results
+        print(results)
+        return [r for r in results]
 
 
 
-# class LiveTweetSqlParser(BaseSqlStreamTransformer):
+class TweetSqlStreamParser(BaseSqlStreamTransformer):
+
+    def _process_batch(self, btch, prg=None):
+
+        data_prx = lambda btch: (r['text'] for r in btch)
+        data = data_prx(btch)
+
+        self._update_conf(btch)
+
+        plvl = MessageService._print_level
+        MessageService.set_print_level(-1)
+
+        self._pipeline = self._pipeline.reconfigure(self._pipeline.conf)
+
+        MessageService.set_print_level(plvl)
+
+        if prg:
+            prg[0](jump=prg[1])
+
+        results = [out for out in self._pipeline.transform(data)]
+
+        
+        
+        return results
 
 
+    def _update_conf(self, btch):
+        #TODO: Make this update obsolete, this is very tedieous
 
-# class TweetSqlParser(BaseSqlStreamTransformer):
+        cnf = self._pipeline.conf
+        
+        column_getter = lambda cnam, btch: [r[cnam] for r in btch]
+        
+        cnf['map_word_to_embeding_indices_conf']['kwargs']['wrapper_sentence_ids'] = column_getter('id',btch)
 
-#     def update_conf(cnf, btch):
-#         #TODO: add exception
-    
-#         ids  = lambda btch: [r['id'] for r in btch]
-#         lang = lambda btch: [r['lang'] for r in btch]
 
-#         cnf['remove_urls_conf']['kwargs']['wrapper_sentence_ids'] = ids(btch)
-#         cnf['map_word_to_embeding_indices_conf']['kwargs']['wrapper_sentence_ids'] = ids(btch) 
-#         cnf['map_word_to_embeding_indices_conf']['kwargs']['wrapper_sentence_lang'] = lang(btch)
+class LiveTweetSqlParser(BaseSqlStreamTransformer):
 
+    def _process_batch(self):
+        pass
