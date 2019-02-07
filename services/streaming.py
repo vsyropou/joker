@@ -1,14 +1,22 @@
 
+import abc
 from multiprocessing.pool import ThreadPool
 
 from services.general import MessageService
 from utilities.general import info, warn, error, debug
 from utilities.general import Progress
 
-# class AbsReadStreamer():
-#     # define itenterface
+class AbsDataStreamer(abc.ABC):
+    def __enter__(self):
+        pass
+    def __init__(self, *args, **kwargs):
+        pass
+    def __exit__(self, *args):
+        pass
+    def __call__(self):
+        pass
 
-class SqlReadStreamer():
+class SqlReadStreamer(AbsDataStreamer):
     
     def __init__(self, *args, **kwargs):
 
@@ -16,32 +24,32 @@ class SqlReadStreamer():
         query = args[1]
 
         step = kwargs.pop('step', 1)
-        rec_frmt = kwargs.pop('records_format', 'dict')
+
+        formater = getattr(self, '%s_formater'%kwargs.pop('records_format', 'dict'))
         
         # TODO: check all args
-        cursor = bdbcknd.cursor()
-        cursor.execute(query)
+        cr = bdbcknd.cursor()
+        cr.execute(query)
 
-        self.nrows = cursor.rowcount
+        self.nrows = cr.rowcount
         self.batch_size = step
         
-        self.column_names = [d.name for d in  cursor.description]
+        self.column_names = [d.name for d in cr.description]
 
-        # format
-        formater = getattr(self, '%s_formater'%rec_frmt) 
-        records  = lambda : formater(cursor.fetchmany(step))
-        
-        self._generator = (records() for _ in range(0,self.nrows,step))
+        # format records
+        self._generator = (formater(cr.fetchmany(step)) for _ in range(0,self.nrows,step))
 
-        #TDOO: Totaly replace this with a permanenet solution for configuring pipelines
+        #TDOO: TOTALLY  replace this with a permanenet solution for configuring pipelines
         self._backed = bdbcknd
-        
+
     def __enter__(self):
         info('Executing stream')
         return self._generator
 
     def __exit__(self, *args):
         info('Processed stream')
+        if args:
+            info(args)
 
     def __call__(self):
         return self._generator
@@ -53,7 +61,11 @@ class SqlReadStreamer():
         return recs
 
 
-class BaseSqlStreamTransformer():
+class StreamTransofrmer(abc.ABC):
+    def process(self):
+        pass
+
+class BaseSqlStreamTransformer(StreamTransofrmer):
 
     def __init__(self, *args, nthreads = 1):
 
@@ -68,7 +80,7 @@ class BaseSqlStreamTransformer():
         self._num_threads = nthreads
 
         self._processed = False
-    
+
     def process(self):
 
         with self._streamer as strm :

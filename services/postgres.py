@@ -16,7 +16,7 @@ class AbsPostgressService(abc.ABC):
     @abc.abstractmethod
     def host(self):
         pass
-    
+
     @property
     @abc.abstractmethod
     def user(self):
@@ -37,41 +37,51 @@ class BasePostgressService(AbsPostgressService):
             'Path "%s" does not exist. Try specifieng path correctly or set the '\
             'global property "tmp_directory_path" accordingly'
 
-        # look for password
-        self._check_password()
+        self._class_prefix = self.__class__.__name__.split('PostgresDatabaseService')[0]
+
+        # chcek password and connection
+        self._check_connection()
 
         debug('Instantiated db client to: "%s" database @%s.'%(self.database,self.host))
 
+    def _check_connection(self):
+        
+        credentials_path = os.path.join('/tmp/%s_postgress_crd.json'%self._class_prefix)
 
-    def _check_password(self):
-
-        prefix = self.__class__.__name__.split('PostgresDatabaseService')[0]
-
-        credentials_path = os.path.join('/tmp/%s_postgress_crd.json'%prefix)
-
-        # ask for pwd, if needed
+        # ensure password
         if not os.path.exists(credentials_path):
             msg = 'Provide password for database "%s" (hostname: %s): \n> '%(prefix,self.host)
             pwd = input(msg)
             print()
-            # write
+            # write out pwd
             with open(credentials_path, 'w+') as fp:
                 json.dump(pwd,fp)
 
         # test connection
-        try:
-            self.conn = psycopg.connect(user = self.user,
-                                        password = read_json(credentials_path),
-                                        database = self.database,
-                                        host = self.host)
+        self._connect(read_json(credentials_path)).close()
 
+
+    def _connect(self, pwd):
+        try:
+            conn = psycopg.connect(user = self.user,
+                                   password = pwd,
+                                   database = self.database,
+                                   host = self.host)
         except Exception as err:
             error('Error while connecting to "%s@%s" as %s'%(self.database,self.host,self.user))
             error(err)
-            raise
+            raise        
+
+        return conn
 
     def cursor(self):
-        return  self.conn.cursor()
+
+        credentials_path = os.path.join('/tmp/%s_postgress_crd.json'%self._class_prefix)
+        pwd = read_json(credentials_path)
+
+        conn = self._connect(pwd)
+
+        return conn.cursor()
 
     def execute(self, qry):
 
@@ -83,18 +93,23 @@ class BasePostgressService(AbsPostgressService):
             print(err)
             raise
 
-        return cursor.fetchall()
+        results = cursor.fetchall()
+
+        cursor.connection.close()
+        
+        return results
 
     def execute_insert(self, qry):
 
         cursor = self.cursor()
+        conn = cursor.connection
+
         try:
             cursor.execute(qry)
-            self.conn.commit()
-
+            conn.commit()
         except Exception as err:
 
-            self.conn.rollback()
+            conn.rollback()
             
             if err.pgcode == '23505':
                 warn('Primary key vioaltion. Rolled back query: %s'%qry)
@@ -103,9 +118,8 @@ class BasePostgressService(AbsPostgressService):
                 print(err,err.pgcode)
                 raise
 
-
         cursor.close()
-
+        conn.close()
 
 class PostgresReaderService(BasePostgressService):
 
@@ -116,7 +130,7 @@ class PostgresReaderService(BasePostgressService):
     @property
     def user(self):
         return 'postgres'
-    
+
     @property
     def database(self):
         return 'postgres'
@@ -131,7 +145,7 @@ class PostgresWriterService(BasePostgressService):
     @property
     def user(self):
         return 'postgres'
-    
+
     @property
     def database(self):
         return 'postgres'

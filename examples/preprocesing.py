@@ -19,7 +19,7 @@ from utilities.general import read_json
 msg_srvc = MessageService(print_level = 2 if opts.verbose else 1)
 dbs_srvc = instansiate_engine('services.postgres', 'PostgresWriterService')
 # sql_strm = DataStreamerSql(dbs_srvc, all_tweets_qry(['id','text', 'lang']), step=100)
-sql_strm = SqlReadStreamer(dbs_srvc, 'SELECT id,text,lang FROM tweets OFFSET 86100', step=100)
+sql_strm = SqlReadStreamer(dbs_srvc, 'SELECT id,text,lang FROM tweets LIMIT 30', step=10)
 
 
 # configure pipeline
@@ -38,8 +38,7 @@ pipeline = PipelineWrapper(ppl_name, ppl_version, cnf, delay_conf=True)
 
 #TODO:  hash the conf file and append it to the ppl and print it to the stdoutput
 
-stream_processor = TweetSqlStreamParser(pipeline, sql_strm, nthreads = 1)
-
+stream_processor = TweetSqlStreamParser(pipeline, sql_strm, nthreads = 2)
 
 out = stream_processor.process()
 
