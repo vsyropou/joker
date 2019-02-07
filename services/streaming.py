@@ -48,7 +48,7 @@ class SqlReadStreamer(AbsDataStreamer):
 
     def __exit__(self, *args):
         info('Processed stream')
-        if args:
+        if any(args):
             info(args)
 
     def __call__(self):
@@ -102,11 +102,9 @@ class BaseSqlStreamTransformer(StreamTransofrmer):
                     proxy = lambda b: self._process_batch(b, prg=(prog,batch_size))
 
                     results = pool.map(proxy, strm)
-                    #TODO: maybe join before calling map??, I am not sure
                     pool.close()
                     pool.join()
 
-        print(results)
         return [r for r in results]
 
 
