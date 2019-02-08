@@ -2,6 +2,7 @@
 import abc
 
 from pprint import pprint
+from pandas import DataFrame
 from sklearn.pipeline import Pipeline
 
 from utilities.general import info, warn, error, debug, MessageService
@@ -11,14 +12,17 @@ __all__ = ['BasePipelineComponent', 'PipelineWrapper']
 
 class PipelineWrapper(Pipeline):
 
-    def __init__(self, name, version, conf, delay_conf=False):
+    def __init__(self, name, version, conf, **kwargs):
 
         self.name = name
         self.version = version
         self.conf = conf
 
-        if not delay_conf:
+        self._db_backend = kwargs.get('db_backend', None)
+
+        if kwargs.get('delay_conf', False)==False:
             self.configure(conf)
+
 
     def configure(self, conf):
 
@@ -50,9 +54,15 @@ class PipelineWrapper(Pipeline):
             pprint(self.steps)
 
             raise
+
+    def reconfigure(self, cnf, **kwargs):
         
-    def reconfigure(self, cnf):
-        return PipelineWrapper(self.name, self.version, cnf, delay_conf=False)
+        args = [self.name, self.version, cnf]
+
+        kwargs['delay_conf'] = False
+        kwargs['db_backend'] = self._db_backend if not 'db_backend' in kwargs.keys() else None
+
+        return PipelineWrapper(*args, **kwargs)
 
     def _create_steps(self, specs, confs):
 
@@ -66,6 +76,7 @@ class PipelineWrapper(Pipeline):
                 warn('No backend configuration found for %s. Using defaults.'%class_name)
                 args, kwargs = [], {}
 
+            kwargs['wrapper_db'] =  self._db_backend
             kwargs['wrapper_order'] = order + 1
             kwargs['wrapper_num_pipeline_steps'] = len(self.pipeline_steps) + 1
             class_instance = instansiate_engine(module_name, class_name, args, kwargs)
@@ -86,9 +97,14 @@ class AbsPipelineComponent(abc.ABC):
 
 class BasePipelineComponent(AbsPipelineComponent):
 
+    default_operant_column_name = 'text'
+    
     def __init__(self, *args, **kwargs):
         
         # set attributes, if any, for the wrapper instanse
+        if not 'operant_column_name' in kwargs.keys():
+            kwargs['wrapper_operant_column_name'] = self.default_operant_column_name
+        
         for key, arg in kwargs.items():
             if key.startswith('wrapper'):
                 setattr(self, '_'.join(key.split('_')[1:]), arg)
@@ -127,7 +143,16 @@ class BasePipelineComponent(AbsPipelineComponent):
         warn('Default "%s.fit" method does not do anything'%self.__class__.__name__)
         return sents
 
-    def transoform(self, sents):
-        warn('Default "%s.transform" method does not do anything'%self.__class__.__name__)
+    def transform(self, sents):
+        # warn('Default "%s.transform" method does not do anything'%self.__class__.__name__)
+
+        if not type(sents) == DataFrame:
+            try:    
+                sents = DataFrame(sents)
+            except Exception as err:
+                error('Cannot parse data into frame')
+                print(err)
+                raise
+
         return sents
 

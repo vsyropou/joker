@@ -41,20 +41,23 @@ class SqlReadStreamer(AbsDataStreamer):
         # format records
         self._generator = (formater(cr.fetchmany(step)) for _ in range(0,self.nrows,step))
 
-        #TDOO: TOTALLY  replace this with a permanenet solution for configuring pipelines
-        self._backed = bdbcknd
-
+        self._enter_message = 'Start sql streaming of: %s\n'%query +\
+                              ' total number of rows: %s\n'%self.nrows +\
+                              ' batch size: %s'%self.batch_size
     def __enter__(self):
-        info('Executing stream')
+        info(self._enter_message)
         return self._generator
 
     def __exit__(self, *args):
-        info('Processed stream')
         if any(args):
-            info(args)
+            error('Exception inside "%s" context'%self.__class__.__name__)
+            print('%s: %s'(args[0],args[1]))
+            print(args[2])
+        else:
+            info('Processed stream')
 
     def __call__(self):
-        return self._generator
+        self.__enter__()
     
     def dict_formater(self, recs):
         return [{nam:val for nam, val in zip(self.column_names,rec)} for rec in recs]
@@ -63,11 +66,7 @@ class SqlReadStreamer(AbsDataStreamer):
         return recs
 
 
-class StreamTransofrmer(abc.ABC):
-    def process(self):
-        pass
-
-class BaseSqlStreamTransformer(StreamTransofrmer):
+class SqlStreamTransformer():
 
     def __init__(self, *args, nthreads = 1):
 
@@ -80,8 +79,6 @@ class BaseSqlStreamTransformer(StreamTransofrmer):
             print(err)
 
         self._num_threads = nthreads
-        #TODO: why do we need this??
-        self._processed = False
 
         self.input_count  = np.int64(0)
         self.output_count = np.int64(0)
@@ -93,7 +90,7 @@ class BaseSqlStreamTransformer(StreamTransofrmer):
             num_records = self._streamer.nrows
             batch_size = self._streamer.batch_size
 
-            nam = '%s_%s'%(self._pipeline.name,self._pipeline.version)
+            nam = 'pipline "%s", %s'%(self._pipeline.name,self._pipeline.version)
 
             with Progress(num_records, name=nam) as prog:
 
@@ -110,9 +107,23 @@ class BaseSqlStreamTransformer(StreamTransofrmer):
                     pool.close()
                     pool.join()
 
-        self._processed = True
+        info('pipeline efficiency: %s'%self.efficiency)
 
         return [r for r in results]
+
+
+    def _process_batch(self, btch, prg=None):
+
+        self._reconfigure_pipeline()
+        
+        if prg: prg[0](jump=prg[1])
+
+        processed_data = [out for out in self._pipeline.transform(btch)]
+
+        self.input_count  += np.int64(self._streamer.batch_size)
+        self.output_count += np.int64(len(processed_data))
+        
+        return processed_data
 
 
     def _reconfigure_pipeline(self):
@@ -129,38 +140,3 @@ class BaseSqlStreamTransformer(StreamTransofrmer):
     def efficiency(self):
         return '%.3f'%(np.float64(float(self.output_count)) / np.float64(self.input_count))
 
-class TweetSqlStreamParser(BaseSqlStreamTransformer):
-
-    def _process_batch(self, btch, prg=None):
-
-        self._update_conf(btch)
-
-        self._reconfigure_pipeline()
-        
-        if prg: prg[0](jump=prg[1])
-        #TODO: this is too rigid, need to make classes
-        #     agnostic to the specifics of the dataset
-        data = (r['text'] for r in btch)
-
-        processed_data = [out for out in self._pipeline.transform(data)]
-
-        self.input_count  += np.int64(self._streamer.batch_size)
-        self.output_count += np.int64(len(processed_data))
-        
-        return processed_data
-
-
-    def _update_conf(self, btch):
-        #TODO: Make this methos obsolete, this is very tedieous, can be done much less coupled
-
-        cnf = self._pipeline.conf
-
-        column_getter = lambda cnam, btch: [r[cnam] for r in btch]
-        cnf['map_word_to_embeding_indices_conf']['kwargs']['wrapper_db'] = self._streamer._backed
-        cnf['map_word_to_embeding_indices_conf']['kwargs']['wrapper_sentence_ids'] = column_getter('id',btch)
-
-
-class LiveTweetSqlParser(BaseSqlStreamTransformer):
-
-    def _process_batch(self):
-        pass

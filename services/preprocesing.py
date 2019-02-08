@@ -17,16 +17,28 @@ from utilities.postgres_queries import  get_embeding_qry, list_of_tables_qry
 class BaseRegExpService(BasePipelineComponent):
 
     def transform(self, sents):
-        debug('Progressing %s/%s steps (%s)'%(self.order, self.num_pipeline_steps, self.__class__.__name__))
-        return [re.sub(self._regular_expresion, '', snt) for snt in sents]
+        debug('Progressing %s/%s steps (%s)'%(self.order, self.num_pipeline_steps, self.__class__.__name__))        
 
-class RetweetRemoverSvc(BaseRegExpService):
+        sents = super().transform(sents)
+
+        subst = lambda snt: re.sub(self._regular_expresion, '', snt)
+
+        sents[self.operant_column_name] = sents[self.operant_column_name].apply(subst)
+
+        return sents
+
+class RetweetRemoverSvc(BasePipelineComponent):
 
     _regular_expresion = re.compile('^(RT|rt|RT_|rt_)( @\w*|@\w*|  @\w*)?[: ]')
 
     def transform(self, sents):
         debug('Progressing %s/%s steps (%s)'%(self.order, self.num_pipeline_steps, self.__class__.__name__))
-        return [snt for snt in sents if not re.match(self._regular_expresion, snt)]
+
+        isRetweet = lambda row: not re.match(self._regular_expresion, row[self.operant_column_name])
+        
+        sents = super().transform(sents)
+
+        return sents[sents.apply(isRetweet, axis=1)]
 
 class LineBreaksRemoverSvc(BaseRegExpService):
 
@@ -35,7 +47,6 @@ class LineBreaksRemoverSvc(BaseRegExpService):
 class HandlesRemoverSvc(BaseRegExpService):
 
     _regular_expresion = re.compile("\S*@\S*\s?")
-
 
 class HashtagRemoverSvc(BaseRegExpService):
 
@@ -46,7 +57,7 @@ class PunktuationRemoverSvc(BaseRegExpService):
 
     _regular_expresion = re.compile('[%s]' % re.escape(punctuation + "…"))
 
-class UrlRemoverSvc(BaseRegExpService):
+class UrlRemoverSvc(BasePipelineComponent):
 
     _regular_expresion = re.compile("(?P<url>https?://[^\s]+)")
 
@@ -56,7 +67,7 @@ class UrlRemoverSvc(BaseRegExpService):
 
         # check attributes
         self._check_derived_class_argument(["persist_urls", "sentence_ids", "table_name"],
-                                           [False, [], "urls"])
+                                           [False, 'id', "urls"])
 
         # check that urls can be persisted
         if self.persist_urls:
@@ -71,26 +82,21 @@ class UrlRemoverSvc(BaseRegExpService):
                 
     def transform(self, sents):
 
-        # collect tasks
-        operators = {'url_filter': super(UrlRemoverSvc, self).transform}
-        arguments = {'url_filter': [sents]}
+        sents = super().transform(sents)
 
-        # append optional tasks
+        tweets    = sents[self.operant_column_name]
+
         if self.persist_urls:
-            urls_list = [re.findall(self._regular_expresion, snt) for snt in sents]
-            operators['persist_urls'] = persist_urls
-            arguments['persist_urls'] = [self.db, urls_list, self.sentence_ids, self.table_name]
 
-            # runtime check
-            try:
-                assert len(urls_list) == len(self.sentence_ids)
-            except AssertionError as err:
-                error('Caught RuntimeError')
-                print(err)
-            
-        results = { nam : opr(*arguments[nam]) for nam, opr in operators.items()}
+            urls_list = [re.findall(self._regular_expresion, snt) for snt in tweets.values]
+            tweet_ids = sents[self.tweet_ids_column_name].values
 
-        return results['url_filter']
+            persist_urls(self.db, urls_list, tweet_ids, self.table_name)
+
+        # filter out urls
+        sents[self.operant_column_name] =  tweets.apply(lambda snt: re.sub(self._regular_expresion, '',  snt))
+        
+        return sents
 
 
 class StopWordsRemoverSvc(BasePipelineComponent):
@@ -109,9 +115,14 @@ class StopWordsRemoverSvc(BasePipelineComponent):
 
     def transform(self, sents):
         debug('Progressing %s/%s steps (%s)'%(self.order, self.num_pipeline_steps, self.__class__.__name__))
-        condition = lambda snt: [w for w in snt if w not in self._stop_words]
 
-        return map(condition, sents)
+        sents = super().transform(sents)
+ 
+        drop_punktuation = lambda snt: [w for w in snt if w not in self._stop_words]
+        
+        sents[self.operant_column_name] = sents[self.operant_column_name].apply(drop_punktuation)
+
+        return sents
 
 
 class EmojiReplacerSvc(BasePipelineComponent):
@@ -126,7 +137,14 @@ class EmojiReplacerSvc(BasePipelineComponent):
 
     def transform(self, sents):
         debug('Progressing %s/%s steps (%s)'%(self.order, self.num_pipeline_steps, self.__class__.__name__))
-        return np.array([self.underlying_engine(s, delimiters=self.delimeters) for s in sents])
+
+        sents = super().transform(sents)
+
+        subst = lambda snt: self.underlying_engine(snt, delimiters=self.delimeters)
+
+        sents[self.operant_column_name] = sents[self.operant_column_name].apply(subst)
+
+        return sents
 
 class NumberReplacerSvc(BasePipelineComponent):
 
@@ -134,6 +152,8 @@ class NumberReplacerSvc(BasePipelineComponent):
 
     def transform(self, sents):
         debug('Progressing %s/%s steps (%s)'%(self.order, self.num_pipeline_steps, self.__class__.__name__))
+
+        sents = super().transform(sents)
 
         def number_to_string(num):
             try:
@@ -148,9 +168,11 @@ class NumberReplacerSvc(BasePipelineComponent):
         
         replace_func = lambda w: number_to_string(w) if w.isnumeric() else w
         
-        condition = lambda snt: [replace_func(w) for w in snt]
+        filter_numbers = lambda snt: [replace_func(w) for w in snt]
 
-        return map(condition, sents)
+        sents[self.operant_column_name] = sents[self.operant_column_name].apply(filter_numbers)
+
+        return sents
 
 
 class TweeterTokenizerSvc(BasePipelineComponent):
@@ -159,7 +181,12 @@ class TweeterTokenizerSvc(BasePipelineComponent):
 
     def transform(self, sents):
         debug('Progressing %s/%s steps (%s)'%(self.order, self.num_pipeline_steps, self.__class__.__name__))
-        return np.array([self._tokenizer(s) for s in sents])
+
+        sents = super().transform(sents)
+        
+        sents[self.operant_column_name] = sents[self.operant_column_name].apply(self._tokenizer)
+
+        return sents
 
 
 class WordEmbedingsPgSvc(BasePipelineComponent):
@@ -170,8 +197,8 @@ class WordEmbedingsPgSvc(BasePipelineComponent):
 
         # check attributes
         self._check_derived_class_argument(["persist_sentences", "persist_unknown_words",
-                                            "sentence_ids", "sentence_lang", 'table_names'],
-                                           [False, False, None, None, {}, False])
+                                            "tweet_ids_column_name", "language_column_name", 'table_names'],
+                                           [False, False, "id", "lang", {}])
         
         # guarantee db engine
         has_valid_db_backend(self)
@@ -192,17 +219,9 @@ class WordEmbedingsPgSvc(BasePipelineComponent):
 
         # guarante persistance of sentences and unknown words
         #  data availability
-        for arg_name, flag_name, cond in zip(['sentence_ids',                'sentence_lang'],
-                                             ['persist_sentences',           'persist_unknown_words'],
-                                             [self.sentence_ids is not None, self.sentence_lang is not None]):
-
+        for flag_name in ['persist_sentences', 'persist_unknown_words']:
+            
             if getattr(self,flag_name):
-                try: # ids and languages datasets
-                    assert cond
-                except AssertionError:
-                    error('"%s" argument is required when "%s" flag is True.'%(arg_name,flag_name))
-                    raise
-
                 try:  # list of tables in the db
                     assert flag_name in self.table_names.keys()
                 except KeyError as err:
@@ -213,15 +232,16 @@ class WordEmbedingsPgSvc(BasePipelineComponent):
                 has_table(self.db, self.table_names[flag_name])
 
 
-
     def transform(self, sents):
         debug('Progressing %s/%s steps (%s)'%(self.order, self.num_pipeline_steps, self.__class__.__name__))
 
-        # basic sentemnce filtering
-        tokenized_sentences = [self.sentence_to_embeding_tokens(snt) for snt in sents]
+        sents = super().transform(sents)
+
+        # basic sentence filtering
+        sents[self.operant_column_name] = sents[self.operant_column_name].apply(self.sentence_to_embeding_tokens)
 
         # colect tasks
-        operators, arguments = self._collect_tasks(tokenized_sentences)
+        operators, arguments = self._collect_tasks(sents)
 
         results = { nam : opr(*arguments[nam]) for nam, opr in operators.items()}
 
@@ -249,15 +269,19 @@ class WordEmbedingsPgSvc(BasePipelineComponent):
         return result
 
     def _collect_tasks(self, tokenized_sentences):
+        
+        tweet_ids = tokenized_sentences[self.tweet_ids_column_name]
+        tweet_languages = tokenized_sentences[self.language_column_name]
+        tokenized_sentences = tokenized_sentences[self.operant_column_name]
 
-        unkown_words_filter = lambda embd_snts: [[w for w in snt if str!=type(w)==int] for snt in embd_snts]
+        unkown_words_filter = lambda tksnts: tksnts.apply(lambda tsnt: [w for w in tsnt if str!=type(w)==int]).values
 
         tnams = lambda key: self.table_names[key]
-
+        
         base_args = [self.db, tokenized_sentences]
         arguments = {'unknown_words_filter':  [tokenized_sentences],
-                     'persist_sentences':     base_args + [self.sentence_ids,  tnams('persist_sentences')],
-                     'persist_unknown_words': base_args + [self.sentence_lang, tnams('persist_unknown_words')]
+                     'persist_sentences':     base_args + [tweet_ids,       tnams('persist_sentences')],
+                     'persist_unknown_words': base_args + [tweet_languages, tnams('persist_unknown_words')]
                      }
 
         operators = {}

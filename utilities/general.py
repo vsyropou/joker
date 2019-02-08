@@ -55,10 +55,15 @@ class Progress():
         self._counter += jump
 
     def __exit__(self, *args):
-        self._counter = self._total
-        self()
-        self._counter = 0
-        print()
+        if any(args):
+            error('Exception inside "%s" context'%self.__class__.__name__)
+            print('%s: %s'(args[0],args[1]))
+            print(args[2])
+        else:
+            self._counter = self._total
+            self()
+            self._counter = 0
+            print()
 
 
 def read_json(path):

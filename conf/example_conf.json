@@ -1,7 +1,7 @@
 {
     "pipeline_version": "v0.1",
     "steps": [
-	["services.preprocesing", "RetweetRemoverSvc",  "remove_retweets"],
+	["services.preprocesing", "RetweetRemoverSvc",     "remove_retweets"],
 	["services.preprocesing", "HandlesRemoverSvc",     "remove_handles"],
 	["services.preprocesing", "UrlRemoverSvc",         "remove_urls"],
 	["services.preprocesing", "HashtagRemoverSvc",     "remove_hashtags"],
@@ -16,8 +16,9 @@
     "multithread": true,
     "remove_urls_conf": {
 	"kwargs": {
- 	    "wrapper_persist_urls": false,
-	    "wrapper_table_name": "urls"
+ 	    "wrapper_persist_urls": true,
+	    "wrapper_table_name": "urls",
+	    "wrapper_tweet_ids_column_name": "id"
 	}
     },
     "replace_emojis_conf": {
@@ -33,7 +34,9 @@
     "map_word_to_embeding_indices_conf":{
 	"kwargs":{
 	    "wrapper_persist_sentences": true,
-	    "wrapper_persist_unknown_words": false,
+	    "wrapper_tweet_ids_column_name": "id",
+	    "wrapper_persist_unknown_words": true,
+	    "wrapper_language_column_name": "lang",
 	    "wrapper_table_names": {
 		"persist_sentences": "tweets_with_embs_idx_glove25",
 		"persist_unknown_words": "unknownwords_glove25",
