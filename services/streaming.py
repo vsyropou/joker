@@ -1,5 +1,7 @@
 
 import abc
+import numpy as np
+
 from multiprocessing.pool import ThreadPool
 
 from services.general import MessageService
@@ -27,7 +29,7 @@ class SqlReadStreamer(AbsDataStreamer):
 
         formater = getattr(self, '%s_formater'%kwargs.pop('records_format', 'dict'))
         
-        # TODO: check all args
+        # TODO: check all parsed args
         cr = bdbcknd.cursor()
         cr.execute(query)
 
@@ -78,8 +80,11 @@ class BaseSqlStreamTransformer(StreamTransofrmer):
             print(err)
 
         self._num_threads = nthreads
-
+        #TODO: why do we need this??
         self._processed = False
+
+        self.input_count  = np.int64(0)
+        self.output_count = np.int64(0)
 
     def process(self):
 
@@ -105,6 +110,8 @@ class BaseSqlStreamTransformer(StreamTransofrmer):
                     pool.close()
                     pool.join()
 
+        self._processed = True
+
         return [r for r in results]
 
 
@@ -118,7 +125,10 @@ class BaseSqlStreamTransformer(StreamTransofrmer):
 
         MessageService.set_print_level(plvl)
 
-        
+    @property
+    def efficiency(self):
+        return '%.3f'%(np.float64(float(self.output_count)) / np.float64(self.input_count))
+
 class TweetSqlStreamParser(BaseSqlStreamTransformer):
 
     def _process_batch(self, btch, prg=None):
@@ -132,7 +142,12 @@ class TweetSqlStreamParser(BaseSqlStreamTransformer):
         #     agnostic to the specifics of the dataset
         data = (r['text'] for r in btch)
 
-        return [out for out in self._pipeline.transform(data)]
+        processed_data = [out for out in self._pipeline.transform(data)]
+
+        self.input_count  += np.int64(self._streamer.batch_size)
+        self.output_count += np.int64(len(processed_data))
+        
+        return processed_data
 
 
     def _update_conf(self, btch):

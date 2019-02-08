@@ -20,6 +20,13 @@ class BaseRegExpService(BasePipelineComponent):
         debug('Progressing %s/%s steps (%s)'%(self.order, self.num_pipeline_steps, self.__class__.__name__))
         return [re.sub(self._regular_expresion, '', snt) for snt in sents]
 
+class RetweetRemoverSvc(BaseRegExpService):
+
+    _regular_expresion = re.compile('^(RT|rt|RT_|rt_)( @\w*|@\w*|  @\w*)?[: ]')
+
+    def transform(self, sents):
+        debug('Progressing %s/%s steps (%s)'%(self.order, self.num_pipeline_steps, self.__class__.__name__))
+        return [snt for snt in sents if not re.match(self._regular_expresion, snt)]
 
 class LineBreaksRemoverSvc(BaseRegExpService):
 

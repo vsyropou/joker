@@ -42,4 +42,7 @@ stream_processor = TweetSqlStreamParser(pipeline, sql_strm, nthreads = 2)
 
 out = stream_processor.process()
 
+print()
 print(out)
+print()
+print('pipeline efficiency = %s +/- ....'%stream_processor.efficiency)

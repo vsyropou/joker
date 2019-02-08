@@ -50,7 +50,7 @@ class BasePostgressService(AbsPostgressService):
 
         # ensure password
         if not os.path.exists(credentials_path):
-            msg = 'Provide password for database "%s" (hostname: %s): \n> '%(prefix,self.host)
+            msg = 'Provide password for database "%s" (hostname: %s): \n> '%(self._class_prefix,self.host)
             pwd = input(msg)
             print()
             # write out pwd

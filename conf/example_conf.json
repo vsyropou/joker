@@ -1,7 +1,7 @@
 {
     "pipeline_version": "v0.1",
     "steps": [
-	["services.preprocesing", "LineBreaksRemoverSvc",  "remove_lbreaks"],
+	["services.preprocesing", "RetweetRemoverSvc",  "remove_retweets"],
 	["services.preprocesing", "HandlesRemoverSvc",     "remove_handles"],
 	["services.preprocesing", "UrlRemoverSvc",         "remove_urls"],
 	["services.preprocesing", "HashtagRemoverSvc",     "remove_hashtags"],
