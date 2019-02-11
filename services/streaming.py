@@ -50,7 +50,7 @@ class SqlReadStreamer(AbsDataStreamer):
         return self._generator
 
     def __exit__(self, *args):
-        if len (args)==0:
+        if not any(args):
             info('Processed stream')
 
     def __call__(self):
@@ -93,6 +93,8 @@ class SqlStreamTransformer():
         
     def process(self):
 
+        self._pipeline.configure()
+
         with self._streamer as strm :
             
             num_records = self._streamer.nrows
@@ -125,34 +127,19 @@ class SqlStreamTransformer():
         # timing
         if self.time_batch_excecution:  start = time.time()
 
-        # process batch
-        self._reconfigure_pipeline()
-        
         processed_data = [out for out in self._pipeline.transform(btch)]
-
-        # progress report
-        if prg: prg[0](jump=prg[1])
 
         # timming
         if self.time_batch_excecution:
             self._time_measurements += [time.time() - start]
-            info('\nAverage batch execution time: %.2f +/- %.2f'%(self.average_execution_time))
+            info('Average batch execution time: %.2f +/- %.2f'%(self.average_execution_time))
+
+        # progress report
+        if prg: prg[0](jump=prg[1])
 
         # measure pipeline efficiency 
         self.input_count  += np.int64(self._streamer.batch_size)
         self.output_count += np.int64(len(processed_data))
         
         return processed_data
-
-    def _reconfigure_pipeline(self):
-
-        plvl = MessageService._print_level
-
-        MessageService.set_print_level(-1)
-
-        self._pipeline = self._pipeline.reconfigure(self._pipeline.conf)
-
-        MessageService.set_print_level(plvl)
-
-
 

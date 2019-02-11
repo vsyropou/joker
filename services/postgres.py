@@ -89,8 +89,7 @@ class BasePostgressService(AbsPostgressService):
             cursor = self.cursor()
             cursor.execute(qry)
         except Exception as err:
-            error('Caught runtime postgres exception')
-            print(err)
+            conn.rollback()
             raise
 
         results = cursor.fetchall()
@@ -100,32 +99,21 @@ class BasePostgressService(AbsPostgressService):
         return results
 
     def execute_insert(self, qry):
-        # TODO: run this in a seperate thread
+        # TODO: run this in a seperate thread, maybe
         cursor = self.cursor()
         conn = cursor.connection
 
         try:
             cursor.execute(qry)
             conn.commit()
-            committed = True 
         except Exception as err:
-
             conn.rollback()
-            
-            if err.pgcode == '23505':
-                warn('Primary key vioaltion. Rolled back query: %s'%qry)
-            else:
-                error('Runtime exception caught, when: %s'%qry)
-                import pdb;pdb.set_trace()
-                print(err,err.pgcode)
-                raise
-
-            committed = False
+            raise
 
         cursor.close()
         conn.close()
 
-        return committed
+        return True
 
 class PostgresReaderService(BasePostgressService):
 

@@ -3,9 +3,19 @@ from utilities.general import info, warn, error, debug
 
 def persist(backend, insert_qry):
 
-    committed = backend.execute_insert(insert_qry)
+    committed = False
+    try:
+        committed = backend.execute_insert(insert_qry)
+        debug('Excecuted query: %s'%insert_qry)
 
-    debug('Excecuted query: %s'%insert_qry)
+    except Exception as err:
+
+        if err.pgcode == '23505':
+            warn('Caught primary key vioaltion, when %s'%insert_qry)
+        else:
+            error('Throwing unknown runtime exception, when: %s'%insert_qry)
+            print(err,err.pgcode)
+            raise
 
     return committed
 
@@ -20,17 +30,23 @@ def persist_sentences(*args):
         error('Not enough arguments to persist sentences')
         raise err
 
-    # prepare query and insert
+    # helping stuff
     row_to_string = lambda row: "(%s, '{%s}')"%(row.values[0],row.values[1])
     insert_frmter = lambda row: row_to_string(row).replace('[','').replace(']','')
 
-    insert_data = data.apply(insert_frmter, axis=1)
-    
-    return [persist(db,insert_qry(name, row)) for row in insert_data]
+    # prepare insert
+    if data.shape[0] == 0:
+        responce = []
+        warn('Nothing to persist.')
+    else:
+        insert_data = data.apply(insert_frmter, axis=1)
+        responce = [persist(db, insert_qry(name, row)) for row in insert_data]
 
+    return responce
+    
 
 def persist_unknown_words(*args):
-    # TODO: This needs to be updated to be compatible with pandas
+    # TODO: This needs to be updated to be compatible with pandas, like the above one
     assert False, 'Unknown words persistance is is not ready yet'
     try: # parse args
         db   = args[0] # db_backend

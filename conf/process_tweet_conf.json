@@ -19,7 +19,7 @@
     },
     "assign_embeddings_conf":{
 	"kwargs":{
-	    "wrapper_persist_sentences": false,
+	    "wrapper_persist_sentences": true,
 	    "wrapper_tweet_ids_column_name": "id",
 	    "wrapper_table_names": {
 		"persist_sentences": "tweets_embedded_glove25",

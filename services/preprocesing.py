@@ -13,8 +13,14 @@ from utilities.import_tools import instansiate_engine, has_valid_db_backend, has
 from utilities.persist import persist_sentences, persist_unknown_words, persist_urls
 from utilities.postgres_queries import  get_embeding_qry, list_of_tables_qry
 
+class AbsRegExpService(abc.ABC):
+    @property
+    @abc.abstractmethod
+    def _regular_expresion(self):
+        pass
 
-class BaseRegExpService(BasePipelineComponent):
+
+class BaseRegExpService(BasePipelineComponent, AbsRegExpService):
 
     def transform(self, sents):
         debug('Progressing %s/%s steps (%s)'%(self.order, self.num_pipeline_steps, self.__class__.__name__))        
@@ -27,6 +33,7 @@ class BaseRegExpService(BasePipelineComponent):
 
         return sents
 
+
 class RetweetRemoverSvc(BasePipelineComponent):
 
     _regular_expresion = re.compile('^(RT|rt|RT_|rt_)( @\w*|@\w*|  @\w*)?[: ]')
@@ -34,19 +41,22 @@ class RetweetRemoverSvc(BasePipelineComponent):
     def transform(self, sents):
         debug('Progressing %s/%s steps (%s)'%(self.order, self.num_pipeline_steps, self.__class__.__name__))
 
-        isRetweet = lambda row: not re.match(self._regular_expresion, row[self.operant_column_name])
+        is_retweet = lambda row: not re.match(self._regular_expresion, row[self.operant_column_name])
         
         sents = super().transform(sents)
 
-        return sents[sents.apply(isRetweet, axis=1)]
+        return sents[sents.apply(is_retweet, axis=1)]
 
+    
 class LineBreaksRemoverSvc(BaseRegExpService):
 
     _regular_expresion = re.compile("/(\r\n)+|\r+|\n+|\t+/i")
 
+
 class HandlesRemoverSvc(BaseRegExpService):
 
     _regular_expresion = re.compile("\S*@\S*\s?")
+
 
 class HashtagRemoverSvc(BaseRegExpService):
 
@@ -57,6 +67,7 @@ class PunktuationRemoverSvc(BaseRegExpService):
 
     _regular_expresion = re.compile('[%s]' % re.escape(punctuation + "…"))
 
+
 class UrlRemoverSvc(BasePipelineComponent):
 
     _regular_expresion = re.compile("(?P<url>https?://[^\s]+)")
@@ -66,7 +77,7 @@ class UrlRemoverSvc(BasePipelineComponent):
         super().__init__(*args, **kwargs)
 
         # check attributes
-        self._check_derived_class_argument(["persist_urls", "sentence_ids", "table_name"],
+        self._check_derived_class_argument(["persist_urls", "tweet_ids_column_name", "table_name"],
                                            [False, 'id', "urls"])
 
         # check that urls can be persisted
@@ -84,7 +95,7 @@ class UrlRemoverSvc(BasePipelineComponent):
 
         sents = super().transform(sents)
 
-        tweets    = sents[self.operant_column_name]
+        tweets = sents[self.operant_column_name]
 
         if self.persist_urls:
 
@@ -247,11 +258,13 @@ class WordEmbedingsPgSvc(BasePipelineComponent):
 
         results = { nam : opr(*arguments[nam]) for nam, opr in operators.items()}
 
-
         # measure persistance fraction
         for key in ['persist_sentences', 'persist_unknown_words']:
             if getattr(self,key):
-                self.metrics[key] = {'completed_inserts': float(sum(results[key])) / float(len(results[key]))}
+                try:
+                    self.metrics[key] = {'completed_inserts': float(sum(results[key])) / float(len(results[key]))}
+                except ZeroDivisionError as err:
+                    warn('Caught zero division error. Try increasing the batch size.')
 
         return results['filter_unknown_words']
 

@@ -48,7 +48,7 @@ class Progress():
         percents = round(100.0 * self._counter / float(self._total), 1)
         bar = '=' * filled_len + '-' * (bar_len - filled_len)
 
-        sys.stdout.flush()
+        # sys.stdout.flush()
 
         sys.stdout.write('[%s] %s%s ... [%s]\r' % (bar, percents, '%', annimation_icn))
 

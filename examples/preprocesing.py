@@ -11,8 +11,8 @@ def sql_tweets_stream_parser(conf, num_threads=1, time_excecution=False, verbose
     # configure services
     msg_srvc = MessageService(print_level = 2 if verbose else 1)
     dbs_srvc = instansiate_engine('services.postgres', 'PostgresWriterService')
-    # sql_strm = DataStreamerSql(dbs_srvc, all_tweets_qry(['id','text', 'lang']), step=100)
-    sql_strm = SqlReadStreamer(dbs_srvc, 'SELECT id, text FROM tweets LIMIT 20', step=2)
+    #sql_strm = SqlReadStreamer(dbs_srvc, all_tweets_qry(['id','text']), step=300)
+    sql_strm = SqlReadStreamer(dbs_srvc, 'SELECT id, text FROM tweets LIMIT 20', step=5)
 
 
     # configure pipeline
@@ -26,7 +26,7 @@ def sql_tweets_stream_parser(conf, num_threads=1, time_excecution=False, verbose
     stream_processor = SqlStreamTransformer(pipeline, sql_strm, nthreads = num_threads)
     stream_processor.time_batch_excecution = time_excecution
 
-    # fire provessing
+    # fire processing
     processed_data = stream_processor.process()
 
     print()

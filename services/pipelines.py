@@ -21,10 +21,12 @@ class PipelineWrapper(Pipeline):
         self._db_backend = kwargs.get('db_backend', None)
 
         if kwargs.get('delay_conf', False)==False:
-            self.configure(conf)
+            self.configure(conf=self.conf)
 
 
-    def configure(self, conf):
+    def configure(self, **kwargs):
+
+        conf = kwargs.pop('conf', self.conf)
 
         # parse configuration
         for arg in ['pipeline_version', 'pipeline_name' ]:
@@ -55,14 +57,6 @@ class PipelineWrapper(Pipeline):
 
             raise
 
-    def reconfigure(self, cnf, **kwargs):
-        
-        args = [self.name, self.version, cnf]
-
-        kwargs['delay_conf'] = False
-        kwargs['db_backend'] = self._db_backend if not 'db_backend' in kwargs.keys() else None
-
-        return PipelineWrapper(*args, **kwargs)
 
     def _create_steps(self, specs, confs):
 
@@ -82,6 +76,7 @@ class PipelineWrapper(Pipeline):
             class_instance = instansiate_engine(module_name, class_name, args, kwargs)
 
             self.pipeline_steps += [(step_name, class_instance)]
+
         return self.pipeline_steps
 
 
@@ -126,6 +121,7 @@ class BasePipelineComponent(AbsPipelineComponent):
 
             setattr(self, "underlying_engine", engine)
 
+
     def _check_derived_class_argument(self, arguments, default_values):
 
         for arg, val in zip(arguments, default_values):
@@ -139,12 +135,13 @@ class BasePipelineComponent(AbsPipelineComponent):
                     error('Cannot set default valeus for argument %s'%arg)
                     raise
 
+
     def fit(self, sents):
         warn('Default "%s.fit" method does not do anything'%self.__class__.__name__)
         return sents
 
+
     def transform(self, sents):
-        # warn('Default "%s.transform" method does not do anything'%self.__class__.__name__)
 
         if not type(sents) == DataFrame:
             try:    
