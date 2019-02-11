@@ -13,32 +13,16 @@
 	["services.preprocesing", "WordEmbedingsPgSvc",    "assign_embeddings"]
     ],
     "memory": false,
-    "remove_urls_conf": {
-	"kwargs": {
- 	    "wrapper_persist_urls": true,
-	    "wrapper_table_name": "urls",
-	    "wrapper_tweet_ids_column_name": "id"
-	}
-    },
-    "replace_emojis_conf": {
-	"kwargs": {
-	    "wrapper_delimeters": [" <","> "]
-	}
-    },
     "remove_stopwords_conf": {
 	"kwargs": {
-	    "wrapper_language": "english",
 	    "wrapper_add_stopwords": ["RT", "HT", "TIL", "OH"]}
     },
     "assign_embeddings_conf":{
 	"kwargs":{
-	    "wrapper_persist_sentences": true,
+	    "wrapper_persist_sentences": false,
 	    "wrapper_tweet_ids_column_name": "id",
-	    "wrapper_persist_unknown_words": true,
-	    "wrapper_language_column_name": "lang",
 	    "wrapper_table_names": {
-		"persist_sentences": "tweets_tokenized_glove25",
-		"persist_unknown_words": "unknownwords_glove25",
+		"persist_sentences": "tweets_embedded_glove25",
 		"language_model": "embedings_glove25"
 	    }
 	}

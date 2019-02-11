@@ -1,5 +1,6 @@
 
 import abc
+import time
 import numpy as np
 
 from multiprocessing.pool import ThreadPool
@@ -49,11 +50,7 @@ class SqlReadStreamer(AbsDataStreamer):
         return self._generator
 
     def __exit__(self, *args):
-        if any(args):
-            error('Exception inside "%s" context'%self.__class__.__name__)
-            print('%s: %s'(args[0],args[1]))
-            print(args[2])
-        else:
+        if len (args)==0:
             info('Processed stream')
 
     def __call__(self):
@@ -83,6 +80,17 @@ class SqlStreamTransformer():
         self.input_count  = np.int64(0)
         self.output_count = np.int64(0)
 
+        self.time_batch_excecution = False
+        self._time_measurements = []
+
+    @property
+    def efficiency(self):
+        return '%.3f'%(np.float64(float(self.output_count)) / np.float64(self.input_count))
+
+    @property
+    def average_execution_time(self):
+        return (np.average(self._time_measurements),np.std(self._time_measurements))
+        
     def process(self):
 
         with self._streamer as strm :
@@ -94,11 +102,11 @@ class SqlStreamTransformer():
 
             with Progress(num_records, name=nam) as prog:
 
-                if self._num_threads == 1:
+                if self._num_threads == 1: # singlethread
 
                     results = [self._process_batch(b, prg=(prog,batch_size)) for b in strm]
-                
-                else:
+
+                else: # multithread
                     pool = ThreadPool(processes=self._num_threads)
 
                     proxy = lambda b: self._process_batch(b, prg=(prog,batch_size))
@@ -111,20 +119,30 @@ class SqlStreamTransformer():
 
         return [r for r in results]
 
-
+    
     def _process_batch(self, btch, prg=None):
 
+        # timing
+        if self.time_batch_excecution:  start = time.time()
+
+        # process batch
         self._reconfigure_pipeline()
         
-        if prg: prg[0](jump=prg[1])
-
         processed_data = [out for out in self._pipeline.transform(btch)]
 
+        # progress report
+        if prg: prg[0](jump=prg[1])
+
+        # timming
+        if self.time_batch_excecution:
+            self._time_measurements += [time.time() - start]
+            info('\nAverage batch execution time: %.2f +/- %.2f'%(self.average_execution_time))
+
+        # measure pipeline efficiency 
         self.input_count  += np.int64(self._streamer.batch_size)
         self.output_count += np.int64(len(processed_data))
         
         return processed_data
-
 
     def _reconfigure_pipeline(self):
 
@@ -136,7 +154,5 @@ class SqlStreamTransformer():
 
         MessageService.set_print_level(plvl)
 
-    @property
-    def efficiency(self):
-        return '%.3f'%(np.float64(float(self.output_count)) / np.float64(self.input_count))
+
 

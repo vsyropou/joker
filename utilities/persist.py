@@ -3,46 +3,43 @@ from utilities.general import info, warn, error, debug
 
 def persist(backend, insert_qry):
 
-    backend.execute_insert(insert_qry)
+    committed = backend.execute_insert(insert_qry)
 
     debug('Excecuted query: %s'%insert_qry)
 
-    return True
+    return committed
 
 
 def persist_sentences(*args):
 
     try: # parse args
         db   = args[0] # db_backend
-        snts = args[1] # embeded_sentences
-        ids  = args[2] # sentence_ids
-        name = args[3] # table_name
+        data = args[1] # raw isnert_data
+        name = args[2] # table_name
     except KeyError as err:
         error('Not enough arguments to persist sentences')
-        raise RuntimeError(err)
-
-    # helping stuff
-    sntn = lambda tpl: [w for w in tpl[0] if str!=type(w)==int]
-    twid = lambda tpl: tpl[1]
-    wrap = lambda itm: itm.replace("[","'{").replace("]","}'")
-    frmt = lambda tpl: wrap('(%s, %s)'%(twid(tpl),sntn(tpl)))
+        raise err
 
     # prepare query and insert
-    insert_data = [frmt(tpl) for tpl in zip(snts,ids)]
+    row_to_string = lambda row: "(%s, '{%s}')"%(row.values[0],row.values[1])
+    insert_frmter = lambda row: row_to_string(row).replace('[','').replace(']','')
 
+    insert_data = data.apply(insert_frmter, axis=1)
+    
     return [persist(db,insert_qry(name, row)) for row in insert_data]
 
 
 def persist_unknown_words(*args):
+    # TODO: This needs to be updated to be compatible with pandas
+    assert False, 'Unknown words persistance is is not ready yet'
     try: # parse args
         db   = args[0] # db_backend
-        snts = args[1] # embeded_sentences
-        lang = args[2] # sentence_lang
-        name = args[3] # table_name
+        data = args[1] # raw isnert data
+        name = args[2] # table_name
     except KeyError as err:
         error('Not enough arguments to persist unknown words')
         raise RuntimeError(err)
-        
+
     # helping stuff
     uwrds = lambda snt: [w for w in snt if str==type(w)!=int]
 
@@ -55,7 +52,7 @@ def persist_unknown_words(*args):
     return [ persist(db, insert_qry(name, row)) for row in insert_data]
 
 def persist_urls(*args):
-
+    # TODO: This needs to be updated to be compatible with pandas
     try: # parse args
         db    = args[0] # db_backend
         urlsl = args[1] # nested list of urls

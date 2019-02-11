@@ -26,7 +26,7 @@ class MessageService():
             extra_filters = kwargs.pop('print_filters', None)
             if extra_filters:
                 MessageService._print_filters += [extra_filters]
-            
+
     @staticmethod
     def set_print_level(lvl):
         MessageService._print_level = lvl

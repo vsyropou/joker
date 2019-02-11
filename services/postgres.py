@@ -29,7 +29,7 @@ class AbsPostgressService(abc.ABC):
 
 
 class BasePostgressService(AbsPostgressService):
-    
+
     def __init__(self):
 
         # check tmp dir path exists
@@ -100,13 +100,14 @@ class BasePostgressService(AbsPostgressService):
         return results
 
     def execute_insert(self, qry):
-
+        # TODO: run this in a seperate thread
         cursor = self.cursor()
         conn = cursor.connection
 
         try:
             cursor.execute(qry)
             conn.commit()
+            committed = True 
         except Exception as err:
 
             conn.rollback()
@@ -115,11 +116,16 @@ class BasePostgressService(AbsPostgressService):
                 warn('Primary key vioaltion. Rolled back query: %s'%qry)
             else:
                 error('Runtime exception caught, when: %s'%qry)
+                import pdb;pdb.set_trace()
                 print(err,err.pgcode)
                 raise
 
+            committed = False
+
         cursor.close()
         conn.close()
+
+        return committed
 
 class PostgresReaderService(BasePostgressService):
 
