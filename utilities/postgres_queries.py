@@ -59,9 +59,9 @@ create_raw_dataset_view_qry = lambda name: 'create view %s as'%name +\
 
 # cmc features table
 crypto_features_qry = lambda cols, coin, tabl='v_cmc_features': "SELECT %s "%(','.join(cols)) + \
-                                                                "FROM %s AS cft"%tabl + \
-                                                                "WHERE cft.coin_name='%s'"%coin + \
-                                                                "ORDER BY rf.time_idx"
+                                                                "FROM %s AS cft "%tabl + \
+                                                                "WHERE cft.coin_name='%s' "%coin + \
+                                                                "ORDER BY cft.time_idx"
 
 # refresh mv also
 refresh_mv_ref_tweet_ids_time_idx_glove25_qry = "REFRESH MATERIALIZED VIEW view mv_ref_tweet_ids_time_idx_glove25"
