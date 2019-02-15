@@ -11,7 +11,7 @@ column_names_qry = lambda t: "SELECT column_name " \
                              "FROM information_schema.columns " \
                              "WHERE table_schema = 'public' "\
                              "AND table_name   = '%s' "%t
-# basic isenrt 
+# basic insert 
 insert_qry = lambda nam, vals : "INSERT INTO %s"%(nam) + \
                                 " VALUES %s"%vals
 
@@ -55,3 +55,31 @@ create_raw_dataset_view_qry = lambda name: 'create view %s as'%name +\
                                            '  (select array((select id from tweets as tw where tw.insertion_time between hb.time_zero and hb.time_one))) tweet_ids' +\
                                            ' from heartbeat as hb' +\
                                            ' where time_one is not null'
+
+
+# cmc features table
+crypto_features_qry = lambda cols, coin, tabl='v_cmc_features': "SELECT %s "%(','.join(cols)) + \
+                                                                "FROM %s AS cft"%tabl + \
+                                                                "WHERE cft.coin_name='%s'"%coin + \
+                                                                "ORDER BY rf.time_idx"
+
+# refresh mv also
+refresh_mv_ref_tweet_ids_time_idx_glove25_qry = "REFRESH MATERIALIZED VIEW view mv_ref_tweet_ids_time_idx_glove25"
+
+# tweet features table
+tweet_features_qry = lambda cols, tabl='v_tweet_features_glove25': "SELECT %s "%(','.join(cols)) + \
+                                                                   "FROM %s AS tft"%tabl + \
+                                                                   "LEFT JOIN mv_ref_tweet_ids_time_idx_glove25 AS rf ON tft.tweet_id=rf.tweet_id" + \
+                                                                   "ORDER BY rf.time_idx"
+
+# all features table
+full_features_table_qry = lambda cols, coin, tabl='v_cmc_features': "SELECT %s "%(','.join(cols)) + \
+                                                                    "FROM %s AS cft"%tabl + \
+                                                                    "LEFT JOIN mv_ref_tweet_ids_time_idx_glove25 AS rf ON cft.time_idx=rf.tweet_id" + \
+                                                                    "LEFT JOIN v_tweet_feaures_glove25 as tft on tft.tweet_id=rf.tweet_id" + \
+                                                                    "WHERE cft.coin_name='%s'"%coin + \
+                                                                    "ORDER BY rf.time_idx"
+
+# get embedings matrix
+embeddings_matrix_qry = lambda dim, tabl: "SELECT id, word, ARRAY[%s] "%', '.join(['em.embd_%s'%i for i in range(dim)]) +\
+                                          "FROM %s as em" %tabl
