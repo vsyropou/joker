@@ -222,6 +222,7 @@ class WordEmbedingsPgSvc(BasePipelineComponent):
             self.language_model = self.table_names['language_model']
         except KeyError as err:
             error('Specify "wrapper_table_names.language_model" in the pipeline conf file')
+            raise
 
         has_table(self.db, self.language_model)
 
@@ -233,7 +234,7 @@ class WordEmbedingsPgSvc(BasePipelineComponent):
 
         # guarante persistance of sentences and unknown words
         for flag_name in ['persist_sentences', 'persist_unknown_words']:
-            
+
             if getattr(self, flag_name):
                 try:  # list of tables in the db
                     assert flag_name in self.table_names.keys()
@@ -303,10 +304,10 @@ class WordEmbedingsPgSvc(BasePipelineComponent):
         arguments = {'filter_unknown_words': [datasets['filter_unknown_words']]}
 
         # append optional tasks
-        for tsk_nam, exec_tsk, tsk_func, fltr_fnc, col_nam  in zip(['persist_sentences',     'persist_unknown_words'],
+        for tsk_nam, exec_tsk, tsk_func, fltr_fnc, col_nam  in zip(['persist_sentences',       'persist_unknown_words'],
                                                                     [self.persist_sentences,   self.persist_unknown_words],
                                                                     [persist_sentences,        persist_unknown_words],
-                                                                    [is_known, is_unknown],
+                                                                    [       is_known,          is_unknown],
                                                                     [self.operant_column_name, self.language_column_name]
                                                        ):
             if exec_tsk:

@@ -56,6 +56,7 @@ def persist_unknown_words(*args):
         error('Not enough arguments to persist unknown words')
         raise RuntimeError(err)
 
+    import pdb; pdb.set_trace()
     # helping stuff
     uwrds = lambda snt: [w for w in snt if str==type(w)!=int]
 
