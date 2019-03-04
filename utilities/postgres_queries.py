@@ -68,15 +68,21 @@ refresh_mv_ref_tweet_ids_time_idx_glove25_qry = "REFRESH MATERIALIZED VIEW view 
 
 # tweet features table
 tweet_features_qry = lambda cols, tabl='v_tweet_features_glove25': "SELECT %s "%(','.join(cols)) + \
-                                                                   "FROM %s AS tft"%tabl + \
-                                                                   "LEFT JOIN mv_ref_tweet_ids_time_idx_glove25 AS rf ON tft.tweet_id=rf.tweet_id" + \
+                                                                   "FROM %s AS tft "%tabl + \
+                                                                   "LEFT JOIN mv_ref_tweet_ids_time_idx_glove25 AS rf ON tft.tweet_id=rf.tweet_id " + \
                                                                    "ORDER BY rf.time_idx"
+
+tweet_visible_features_qry = lambda cols, tabl='v_tweet_features_glove25': "SELECT %s "%(','.join(cols)) + \
+                                                                           "FROM %s AS tft "%tabl + \
+                                                                           "LEFT JOIN mv_ref_tweet_ids_time_idx_glove25 AS rf ON tft.tweet_id=rf.tweet_id " + \
+                                                                           "WHERE user_followers_count >=5" + \
+                                                                           "ORDER BY rf.time_idx"
 
 # all features table
 full_features_table_qry = lambda cols, coin, tabl='v_cmc_features': "SELECT %s "%(','.join(cols)) + \
-                                                                    "FROM %s AS cft"%tabl + \
-                                                                    "LEFT JOIN mv_ref_tweet_ids_time_idx_glove25 AS rf ON cft.time_idx=rf.tweet_id" + \
-                                                                    "LEFT JOIN v_tweet_feaures_glove25 as tft on tft.tweet_id=rf.tweet_id" + \
+                                                                    "FROM %s AS cft "%tabl + \
+                                                                    "LEFT JOIN mv_ref_tweet_ids_time_idx_glove25 AS rf ON cft.time_idx=rf.tweet_id " + \
+                                                                    "LEFT JOIN v_tweet_feaures_glove25 as tft on tft.tweet_id=rf.tweet_id " + \
                                                                     "WHERE cft.coin_name='%s'"%coin + \
                                                                     "ORDER BY rf.time_idx"
 

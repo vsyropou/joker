@@ -40,8 +40,11 @@ class SqlReadStreamer(AbsDataStreamer):
         self.column_names = [d.name for d in cr.description]
 
         # format records
-        self._generator = (formater(cr.fetchmany(step)) for _ in range(0,self.nrows,step))
-
+        if step == -1:
+            self._generator = (formater(cr.fetchall()))
+        else:
+            self._generator = (formater(cr.fetchmany(step)) for _ in range(0,self.nrows,step))
+            
         self._enter_message = 'Start sql streaming of: %s\n'%query +\
                               ' total number of rows: %s\n'%self.nrows +\
                               ' batch size: %s'%self.batch_size
@@ -64,6 +67,9 @@ class SqlReadStreamer(AbsDataStreamer):
 
     def tuple_formater(self, recs):
         return tuple(recs)
+
+    def nparray_formater(self, recs):
+        return np.array(recs)
 
 
 class SqlStreamTransformer():
