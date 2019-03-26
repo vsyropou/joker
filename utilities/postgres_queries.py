@@ -75,7 +75,7 @@ tweet_features_qry = lambda cols, tabl='v_tweet_features_glove25': "SELECT %s "%
 tweet_visible_features_qry = lambda cols, tabl='v_tweet_features_glove25': "SELECT %s "%(','.join(cols)) + \
                                                                            "FROM %s AS tft "%tabl + \
                                                                            "LEFT JOIN mv_ref_tweet_ids_time_idx_glove25 AS rf ON tft.tweet_id=rf.tweet_id " + \
-                                                                           "WHERE user_followers_count >=5" + \
+                                                                           "WHERE user_followers_count >=5 " + \
                                                                            "ORDER BY rf.time_idx"
 
 # all features table
