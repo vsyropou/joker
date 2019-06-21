@@ -25,6 +25,11 @@ dbs_srvc = instansiate_engine('services.postgres', 'PostgresWriterService')
 n_cnn_filters = 64
 embedings_kernel_size = 4
 
+min_sequence_length = 5
+max_sequence_length = 15 # >99 quantile
+
+max_twts_train_length = 265 # ~90 quantile
+
 time_sequence_length = 2
 batch_length = 5
 
@@ -82,24 +87,52 @@ btc_data.index = btc_data['time_idx']
 ltc_data.index = ltc_data['time_idx']
 
 
-# # tweet data
-# twt_data = pd.DataFrame([i for i in twt_stream()], columns=twt_cols)
+# tweet data
+seq_length_filter = lambda t: len(t) >= min_sequence_length and len(t) <= max_sequence_length
+twt_data = pd.DataFrame([i for i in twt_stream()], columns=twt_cols)
+twt_data = twt_data[twt_data['embeding_keys_array'].apply(seq_length_filter).values]
 
-# twt_ftrs = twt_data[twt_ftrs_cols+['tft.time_idx']].groupby('tft.time_idx').agg(np.mean)
+twt_ftrs = twt_data[twt_ftrs_cols+['tft.time_idx']].groupby('tft.time_idx').agg(np.mean)
+twt_ftrs = pd.DataFrame(StandardScaler().fit_transform(twt_ftrs), columns=twt_ftrs_cols, index=twt_ftrs.index)
 
-# twt_ftrs = pd.DataFrame(StandardScaler().fit_transform(twt_ftrs), columns=twt_ftrs_cols, index=twt_ftrs.index)
+# embedded tweets
+emb_table = pd.DataFrame([i for i in emb_stream()], columns=['idx','word', 'embeddings'])
+
+pca = PCA(n_components=embeddings_vector_length)
+emb_table_reduced = pd.DataFrame(pca.fit_transform([*emb_table['embeddings']]))
+
+# #   !!!! ugly and not readable as fuck, change it !!!!!
+# # top_tweets_filter = lambda tweets: tweets[:max_n_tweets_per_train] if len(tweets) >= max_n_tweets_per_train else
+# # pad_func = lambda twt: np.pad(twt, (0,max_sequence_length-len(twt)), mode='constant')
+# # agg_func = lambda tweets: [pad_func(np.array([emb_table_reduced.loc[tkn][:].values for tkn in twt ])) for twt in tweets]
+
+# #   this fixes, in an ugly way the legth of each individual tweet, which is the column dimention 
+# # pad_twt_func  = lambda twt: np.append(twt, np.repeat([0.]*embeddings_vector_length,max_sequence_length-len(twt))).reshape(max_sequence_length,embeddings_vector_length)
+
+# pad_twt_func  = lambda twt: np.append(twt, np.zeros(max_sequence_length-len(twt), embeddings_vector_length)).reshape(max_sequence_length,embeddings_vector_length)
 
 
-# # embedded tweets
-# emb_table = pd.DataFrame([i for i in emb_stream()], columns=['idx','word', 'embeddings'])
 
-# pca = PCA(n_components=embeddings_vector_length)
-# emb_table_reduced = pd.DataFrame(pca.fit_transform([*emb_table['embeddings']]))
+# trim_twt_func = lambda twt: twt[:max_sequence_length]
 
-# #   ugly and not readable as fuck
-# agg_func = lambda tweets: [np.array([emb_table_reduced.loc[tkn][:].values for tkn in t ]) for t in tweets]
+# shape_tweet_func = lambda twt: trim_twt_func(twt) if len(twt) >= max_sequence_length else pad_twt_func(twt)
+
+# agg_func = lambda tweets: [shape_tweet_func([emb_table_reduced.loc[tkn][:].values for tkn in twt ]) for twt in tweets]
+
 # embedded_tweets = twt_data[['embeding_keys_array','tft.time_idx']].groupby('tft.time_idx').agg(agg_func) # group tweets by coin time index and embeed text
+
+
 # embedded_tweets = np.array([np.array(train[0]) for train in embedded_tweets.values ]) # simply convert nested lists to np.arrays,  
+
+# #   this fixes, in an ugly way the number of tweets per train, which is the row dimention 
+# trim_train_func = lambda trn: trn[:max_twts_train_length,:,:]
+
+# pad_train_func = lambda trn: np.append(trn, np.zeros((max_twts_train_length-trn.shape[0],max_sequence_length,embeddings_vector_length))).reshape(max_twts_train_length,max_sequence_length,embeddings_vector_length)
+
+# shape_train_func = lambda trn: trim_train_func(trn) if trn.shape[0] >= max_twts_train_length else pad_train_func(trn)
+
+# embedded_tweets = np.array([shape_train_func(trn) for trn in embedded_tweets ])
+
 
 # np.save('temp/embeded_tweets_length_%s.npy'%embeddings_vector_length, embedded_tweets)
 
@@ -159,6 +192,15 @@ tst_data = data_func(batch_length,time_sequence_length)
 # print('Total params: {:,}'.format(trainable_count + non_trainable_count))
 # print('Trainable params: {:,}'.format(trainable_count))
 # print('Non-trainable params: {:,}'.format(non_trainable_count))
+
+
+
+
+# this is a 5D object
+#  np.array([[   [[[1,2], [3,4], [4,5]], [[5,6],[6,7],[1,2]], [[1,2], [3,4], [4,5]], [[5,6],[6,7],[1,2]]]  ] ])
+# it is not so difficult if the dimension lengths are fixed.
+# maybe pick up the top n most popular tweets to fix the number of rows dimension.
+# for the colums==words dimmension, you could dynamically pad per tweets train,
 
 
 
