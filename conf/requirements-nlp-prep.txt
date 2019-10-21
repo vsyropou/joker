@@ -4,7 +4,7 @@ emoji==0.5.1
 idna==2.8
 inflect==2.1.0
 joker==0.1
-nltk==3.4
+nltk==3.4.5
 numpy==1.16.0
 pandas==0.23.4
 psycopg2==2.7.7
